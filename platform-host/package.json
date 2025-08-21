@@ -12,6 +12,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "type-check": "tsc --noEmit",
+    "build:analyze": "modern build --analyze",
+    "build:prod": "NODE_ENV=production modern build",
+    "clean": "rimraf dist",
+    "clean:all": "npm run clean && npm run reset",
     "prepare": "simple-git-hooks",
     "upgrade": "modern upgrade"
   },
