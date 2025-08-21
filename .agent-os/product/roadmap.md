@@ -130,7 +130,7 @@ The auth-service has been fully implemented with all required features. The rema
 5. All subsequent requests include tenant context from session
 
 This separation enables:
-- Users belonging to multiple organizations
+- Users belonging to multiple tenants
 - Switching tenants without re-authentication
 - Platform administrators accessing special administrative features
 - Clean separation of identity from authorization

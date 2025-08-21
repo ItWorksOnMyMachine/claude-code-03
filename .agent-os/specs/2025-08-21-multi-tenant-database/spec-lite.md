@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Implement a multi-tenant database architecture using PostgreSQL with row-level security to support multiple tenants within a shared database. This foundation will enable tenant isolation through Entity Framework Core query filters, user-tenant associations via junction tables, and a special platform administration tenant that allows company employees to manage all customer tenants with cross-tenant query capabilities.

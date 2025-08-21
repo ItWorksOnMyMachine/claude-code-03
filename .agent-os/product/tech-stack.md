@@ -70,7 +70,7 @@
 - **Database Hosting:** Aurora Serverless V2 on AWS
 - **Multi-tenant Strategy:** Shared database with row-level security
 - **Tenant Structure:**
-  - Organizations table (tenants)
+  - Tenants table
   - TenantUsers table (user-tenant associations)
   - PlatformAdmins table (platform tenant members)
   - Special platform tenant for administrative access
