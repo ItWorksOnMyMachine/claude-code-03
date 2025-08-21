@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Establish the ModernJS-based React frontend host application with Module Federation capabilities to serve as the foundation for dynamically loading micro frontend services. This host will provide the core infrastructure for authentication integration, tenant selection, and dynamic navigation based on user entitlements, creating a unified application shell that manages shared dependencies and enables seamless module integration.
