@@ -35,6 +35,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      react-router-dom:
+        specifier: ^7.8.1
+        version: 7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.4
@@ -50,7 +53,7 @@ importers:
         version: 2.68.10
       '@module-federation/modern-js':
         specifier: ^0.18.3
-        version: 0.18.3(@rsbuild/core@1.4.15)(@rspack/core@1.4.11(@swc/helpers@0.5.17))(react-dom@18.3.1(react@18.3.1))(react-router-dom@6.27.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)(typescript@5.7.3)(webpack@5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5))
+        version: 0.18.3(@rsbuild/core@1.4.15)(@rspack/core@1.4.11(@swc/helpers@0.5.17))(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)(typescript@5.7.3)(webpack@5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5))
       '@swc/jest':
         specifier: ^0.2.39
         version: 0.2.39(@swc/core@1.11.31(@swc/helpers@0.5.17))
@@ -90,6 +93,9 @@ importers:
       typescript:
         specifier: ~5.7.3
         version: 5.7.3
+      util:
+        specifier: ^0.12.5
+        version: 0.12.5
       webpack:
         specifier: ^5.101.3
         version: 5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5)
@@ -3061,6 +3067,10 @@ packages:
     resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
     engines: {node: '>= 0.6'}
 
+  cookie@1.0.2:
+    resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
+    engines: {node: '>=18'}
+
   cookies@0.9.1:
     resolution: {integrity: sha512-TG2hpqe4ELx54QER/S3HQ9SRVnQnGBtKUz5bLQWtYAQ+o6GpgMs6sYUvaiJjVxb+UXwhRhAEP3m7LbsIZ77Hmw==}
     engines: {node: '>= 0.8'}
@@ -5226,11 +5236,28 @@ packages:
       react: '>=16.8'
       react-dom: '>=16.8'
 
+  react-router-dom@7.8.1:
+    resolution: {integrity: sha512-NkgBCF3sVgCiAWIlSt89GR2PLaksMpoo3HDCorpRfnCEfdtRPLiuTf+CNXvqZMI5SJLZCLpVCvcZrTdtGW64xQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
   react-router@6.27.0:
     resolution: {integrity: sha512-YA+HGZXz4jaAkVoYBE98VQl+nVzI+cVI2Oj/06F5ZM+0u3TgedN9Y9kmMRo2mnkSK2nCpNQn0DVob4HCsY/WLw==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       react: '>=16.8'
+
+  react-router@7.8.1:
+    resolution: {integrity: sha512-5cy/M8DHcG51/KUIka1nfZ2QeylS4PJRs6TT8I4PF5axVsI5JUxp0hC0NZ/AEEj8Vw7xsEoD7L/6FY+zoYaOGA==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
 
   react-side-effect@2.1.2:
     resolution: {integrity: sha512-PVjOcvVOyIILrYoyGEpDN3vmYNLdy1CajSFNt4TDsVQC5KpTijDvWVoR+/7Rz2xT978D8/ZtFceXxzsPwZEDvw==}
@@ -5543,6 +5570,9 @@ packages:
 
   set-blocking@2.0.0:
     resolution: {integrity: sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==}
+
+  set-cookie-parser@2.7.1:
+    resolution: {integrity: sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ==}
 
   set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
@@ -8037,7 +8067,7 @@ snapshots:
       '@types/semver': 7.5.8
       semver: 7.6.3
 
-  '@module-federation/bridge-react@0.18.3(react-dom@18.3.1(react@18.3.1))(react-router-dom@6.27.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
+  '@module-federation/bridge-react@0.18.3(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@module-federation/bridge-shared': 0.18.3
       '@module-federation/sdk': 0.18.3
@@ -8045,7 +8075,7 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-error-boundary: 4.1.2(react@18.3.1)
-      react-router-dom: 6.27.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-router-dom: 7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   '@module-federation/bridge-shared@0.18.3': {}
 
@@ -8154,11 +8184,11 @@ snapshots:
       - utf-8-validate
       - vue-tsc
 
-  '@module-federation/modern-js@0.18.3(@rsbuild/core@1.4.15)(@rspack/core@1.4.11(@swc/helpers@0.5.17))(react-dom@18.3.1(react@18.3.1))(react-router-dom@6.27.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)(typescript@5.7.3)(webpack@5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5))':
+  '@module-federation/modern-js@0.18.3(@rsbuild/core@1.4.15)(@rspack/core@1.4.11(@swc/helpers@0.5.17))(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)(typescript@5.7.3)(webpack@5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5))':
     dependencies:
       '@modern-js/node-bundle-require': 2.68.2
       '@modern-js/utils': 2.68.2
-      '@module-federation/bridge-react': 0.18.3(react-dom@18.3.1(react@18.3.1))(react-router-dom@6.27.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
+      '@module-federation/bridge-react': 0.18.3(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       '@module-federation/cli': 0.18.3(typescript@5.7.3)
       '@module-federation/enhanced': 0.18.3(@rspack/core@1.4.11(@swc/helpers@0.5.17))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.7.3)(webpack@5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5))
       '@module-federation/node': 2.7.14(@rspack/core@1.4.11(@swc/helpers@0.5.17))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.7.3)(webpack@5.101.3(@swc/core@1.11.31(@swc/helpers@0.5.17))(esbuild@0.25.5))
@@ -9841,6 +9871,8 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   cookie@0.7.2: {}
+
+  cookie@1.0.2: {}
 
   cookies@0.9.1:
     dependencies:
@@ -12333,10 +12365,24 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       react-router: 6.27.0(react@18.3.1)
 
+  react-router-dom@7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-router: 7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+
   react-router@6.27.0(react@18.3.1):
     dependencies:
       '@remix-run/router': 1.20.0
       react: 18.3.1
+
+  react-router@7.8.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      cookie: 1.0.2
+      react: 18.3.1
+      set-cookie-parser: 2.7.1
+    optionalDependencies:
+      react-dom: 18.3.1(react@18.3.1)
 
   react-side-effect@2.1.2(react@18.3.1):
     dependencies:
@@ -12638,6 +12684,8 @@ snapshots:
       randombytes: 2.1.0
 
   set-blocking@2.0.0: {}
+
+  set-cookie-parser@2.7.1: {}
 
   set-function-length@1.2.2:
     dependencies:

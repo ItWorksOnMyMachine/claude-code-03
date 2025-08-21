@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom';
+import { TextEncoder, TextDecoder } from 'util';
+
+// Add TextEncoder/TextDecoder for react-router-dom
+global.TextEncoder = TextEncoder as any;
+global.TextDecoder = TextDecoder as any;
 
 // Mock window.matchMedia for Material-UI components
 Object.defineProperty(window, 'matchMedia', {
@@ -14,3 +19,11 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
+
+// Mock Modern.js router globally
+jest.mock('@modern-js/runtime/router', () => ({
+  Link: jest.fn(),
+  useLocation: () => ({ pathname: '/' }),
+  useNavigate: () => jest.fn(),
+  Outlet: () => null,
+}));

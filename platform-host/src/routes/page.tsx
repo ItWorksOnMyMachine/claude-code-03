@@ -1,96 +1,120 @@
-import { Helmet } from '@modern-js/runtime/head';
-import './index.css';
+import React from 'react';
+import { 
+  Box, 
+  Typography, 
+  Grid, 
+  Card, 
+  CardContent,
+  Button,
+  Paper,
+} from '@mui/material';
+import { 
+  Package, 
+  Shield, 
+  Layers, 
+  Settings,
+  ArrowRight,
+} from 'lucide-react';
+import { useNavigate } from '@modern-js/runtime/router';
 
-const Index = () => (
-  <div className="container-box">
-    <Helmet>
-      <link
-        rel="icon"
-        type="image/x-icon"
-        href="https://lf3-static.bytednsdoc.com/obj/eden-cn/uhbfnupenuhf/favicon.ico"
-      />
-    </Helmet>
-    <main>
-      <div className="title">
-        Welcome to
-        <img
-          className="logo"
-          src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/modern-js-logo.svg"
-          alt="Modern.js Logo"
-        />
-        <p className="name">Modern.js</p>
-      </div>
-      <p className="description">
-        Get started by editing <code className="code">src/routes/page.tsx</code>
-      </p>
-      <div className="grid">
-        <a
-          href="https://modernjs.dev/guides/get-started/introduction.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="card"
+const Index = () => {
+  const navigate = useNavigate();
+
+  const features = [
+    {
+      icon: <Package size={32} />,
+      title: 'Module Federation',
+      description: 'Dynamically load micro frontend modules at runtime with shared dependencies.',
+      action: () => navigate('/modules'),
+    },
+    {
+      icon: <Shield size={32} />,
+      title: 'Secure Authentication',
+      description: 'Enterprise-grade authentication with multi-tenant support.',
+      action: () => console.log('Auth feature'),
+    },
+    {
+      icon: <Layers size={32} />,
+      title: 'Multi-Tenancy',
+      description: 'Isolated environments for different organizations and users.',
+      action: () => console.log('Tenant feature'),
+    },
+    {
+      icon: <Settings size={32} />,
+      title: 'Configuration',
+      description: 'Flexible configuration for modules and platform settings.',
+      action: () => navigate('/settings'),
+    },
+  ];
+
+  return (
+    <Box>
+      <Paper 
+        elevation={0} 
+        sx={{ 
+          p: 4, 
+          mb: 4,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+        }}
+      >
+        <Typography variant="h3" gutterBottom>
+          Welcome to Platform Host
+        </Typography>
+        <Typography variant="h6">
+          Enterprise Micro Frontend Platform with Module Federation
+        </Typography>
+      </Paper>
+
+      <Grid container spacing={3}>
+        {features.map((feature, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                },
+              }}
+              onClick={feature.action}
+            >
+              <CardContent>
+                <Box sx={{ color: 'primary.main', mb: 2 }}>
+                  {feature.icon}
+                </Box>
+                <Typography variant="h6" gutterBottom>
+                  {feature.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {feature.description}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h5" gutterBottom>
+          Getting Started
+        </Typography>
+        <Typography variant="body1" paragraph>
+          This platform serves as the host for micro frontend applications using Module Federation.
+          Navigate to the Modules page to load and manage available micro frontends.
+        </Typography>
+        <Button 
+          variant="contained" 
+          endIcon={<ArrowRight />}
+          onClick={() => navigate('/modules')}
         >
-          <h2>
-            Guide
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-              alt="Guide"
-            />
-          </h2>
-          <p>Follow the guides to use all features of Modern.js.</p>
-        </a>
-        <a
-          href="https://modernjs.dev/tutorials/foundations/introduction.html"
-          target="_blank"
-          className="card"
-          rel="noreferrer"
-        >
-          <h2>
-            Tutorials
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-              alt="Tutorials"
-            />
-          </h2>
-          <p>Learn to use Modern.js to create your first application.</p>
-        </a>
-        <a
-          href="https://modernjs.dev/configure/app/usage.html"
-          target="_blank"
-          className="card"
-          rel="noreferrer"
-        >
-          <h2>
-            Config
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-              alt="Config"
-            />
-          </h2>
-          <p>Find all configuration options provided by Modern.js.</p>
-        </a>
-        <a
-          href="https://github.com/web-infra-dev/modern.js"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="card"
-        >
-          <h2>
-            GitHub
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-              alt="Github"
-            />
-          </h2>
-          <p>View the source code on GitHub; feel free to contribute.</p>
-        </a>
-      </div>
-    </main>
-  </div>
-);
+          View Available Modules
+        </Button>
+      </Box>
+    </Box>
+  );
+};
 
 export default Index;
