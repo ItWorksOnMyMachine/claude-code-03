@@ -1,0 +1,277 @@
+groups:
+  - name: authservice_availability
+    interval: 30s
+    rules:
+      - alert: AuthServiceDown
+        expr: up{job="authservice"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: authservice
+        annotations:
+          summary: "Authentication Service is down"
+          description: "The authentication service at {{ $labels.instance }} has been down for more than 2 minutes."
+          runbook_url: "https://docs.platform.com/runbooks/authservice-down"
+
+      - alert: AuthServiceHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_received_total{job="authservice",code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_received_total{job="authservice"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "High error rate in Authentication Service"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+
+      - alert: AuthServiceHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="authservice"}[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "High latency in Authentication Service"
+          description: "95th percentile latency is {{ $value }}s for the last 5 minutes."
+
+  - name: authservice_authentication
+    interval: 30s
+    rules:
+      - alert: HighFailedLoginRate
+        expr: |
+          sum(rate(authservice_failed_authentications_total[5m])) > 10
+        for: 3m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "High rate of failed authentication attempts"
+          description: "Failed login rate is {{ $value }} per second."
+          
+      - alert: AccountLockoutSpike
+        expr: |
+          sum(rate(authservice_account_lockouts_total[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "Spike in account lockouts"
+          description: "Account lockout rate is {{ $value }} per second."
+
+      - alert: NoTokensIssued
+        expr: |
+          sum(rate(authservice_tokens_issued_total[10m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "No tokens issued in the last 10 minutes"
+          description: "The authentication service has not issued any tokens for 10 minutes."
+
+  - name: authservice_security
+    interval: 30s
+    rules:
+      - alert: RateLimitingExcessive
+        expr: |
+          sum(rate(authservice_rate_limit_hits_total[5m])) > 50
+        for: 3m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "Excessive rate limiting"
+          description: "Rate limit violations at {{ $value }} per second. Possible DDoS attack."
+
+      - alert: BruteForceAttackSuspected
+        expr: |
+          (
+            sum(rate(authservice_failed_authentications_total{reason="invalid_credentials"}[5m])) by (client_ip)
+          ) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: authservice
+        annotations:
+          summary: "Possible brute force attack"
+          description: "High rate of failed logins from IP {{ $labels.client_ip }}."
+
+      - alert: UnusualLoginPattern
+        expr: |
+          abs(
+            sum(rate(authservice_login_attempts_total[1h]))
+            -
+            sum(rate(authservice_login_attempts_total[1h] offset 24h))
+          ) / sum(rate(authservice_login_attempts_total[1h] offset 24h)) > 2
+        for: 15m
+        labels:
+          severity: info
+          service: authservice
+        annotations:
+          summary: "Unusual login pattern detected"
+          description: "Login rate differs by {{ $value | humanizePercentage }} from same time yesterday."
+
+  - name: authservice_infrastructure
+    interval: 30s
+    rules:
+      - alert: DatabaseConnectionFailure
+        expr: |
+          authservice_database_connections_failed > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: authservice
+        annotations:
+          summary: "Database connection failures"
+          description: "{{ $value }} database connection failures detected."
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          authservice_database_connections >= 90
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value }} database connections in use (>90% of pool)."
+
+      - alert: RedisConnectionFailure
+        expr: |
+          up{job="authservice-redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: authservice
+        annotations:
+          summary: "Redis connection failure"
+          description: "Cannot connect to Redis cache for session storage."
+
+      - alert: HighMemoryUsage
+        expr: |
+          process_working_set_bytes{job="authservice"} / 1024 / 1024 > 800
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "High memory usage"
+          description: "Process memory usage is {{ $value }}MB."
+
+      - alert: DiskSpaceLow
+        expr: |
+          disk_free_bytes{job="authservice"} / 1024 / 1024 / 1024 < 1
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 1GB free disk space remaining."
+
+  - name: authservice_certificates
+    interval: 1h
+    rules:
+      - alert: CertificateExpiringSoon
+        expr: |
+          (authservice_certificate_expiry_timestamp_seconds - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate expires in {{ $value }} days."
+
+      - alert: CertificateExpiryCritical
+        expr: |
+          (authservice_certificate_expiry_timestamp_seconds - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: critical
+          service: authservice
+        annotations:
+          summary: "SSL certificate expiring critically soon"
+          description: "Certificate expires in {{ $value }} days. Immediate action required."
+
+  - name: authservice_sessions
+    interval: 30s
+    rules:
+      - alert: HighActiveSessions
+        expr: |
+          sum(authservice_active_sessions) > 10000
+        for: 5m
+        labels:
+          severity: info
+          service: authservice
+        annotations:
+          summary: "High number of active sessions"
+          description: "{{ $value }} active sessions detected."
+
+      - alert: SessionGrowthAnomaly
+        expr: |
+          deriv(authservice_active_sessions[5m]) > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "Rapid session growth"
+          description: "Sessions growing at {{ $value }} per second."
+
+      - alert: StaleSessionsDetected
+        expr: |
+          authservice_stale_sessions > 1000
+        for: 30m
+        labels:
+          severity: info
+          service: authservice
+        annotations:
+          summary: "High number of stale sessions"
+          description: "{{ $value }} stale sessions detected. Consider cleanup."
+
+  - name: authservice_performance
+    interval: 30s
+    rules:
+      - alert: TokenIssuanceSlowdown
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(authservice_authentication_duration_seconds_bucket{operation="token_issuance"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "Token issuance taking too long"
+          description: "95th percentile token issuance time is {{ $value }}s."
+
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job="authservice"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%."
+
+      - alert: GarbageCollectionPressure
+        expr: |
+          increase(dotnet_gc_collections_total{job="authservice",generation="2"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: authservice
+        annotations:
+          summary: "High garbage collection pressure"
+          description: "{{ $value }} Gen 2 GC collections in the last 5 minutes."

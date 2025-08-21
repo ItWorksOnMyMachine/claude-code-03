@@ -1,0 +1,42 @@
+@model LoggedOutViewModel
+@{
+    ViewData["Title"] = "Signed Out";
+}
+
+<div class="logo">
+    <h1>Signed Out</h1>
+</div>
+
+<div class="alert alert-info">
+    <p>You have been successfully signed out.</p>
+    @if (!string.IsNullOrWhiteSpace(Model.PostLogoutRedirectUri))
+    {
+        <p>You will be redirected to <strong>@Model.ClientName</strong> shortly.</p>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.PostLogoutRedirectUri))
+{
+    <div>
+        <a class="btn btn-primary" href="@Model.PostLogoutRedirectUri">
+            Return to @(Model.ClientName ?? "application")
+        </a>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.SignOutIframeUrl))
+{
+    <iframe width="0" height="0" class="signout" src="@Model.SignOutIframeUrl" style="display:none;"></iframe>
+}
+
+@section scripts
+{
+    @if (Model.AutomaticRedirectAfterSignOut)
+    {
+        <script>
+            window.setTimeout(function () {
+                window.location = "@Model.PostLogoutRedirectUri";
+            }, 3000);
+        </script>
+    }
+}

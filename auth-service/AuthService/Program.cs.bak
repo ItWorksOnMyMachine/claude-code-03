@@ -1,0 +1,422 @@
+using AuthService.Data;
+using AuthService.Data.Entities;
+using AuthService.Extensions;
+using AuthService.Identity;
+using AuthService.Middleware;
+using Duende.IdentityServer.EntityFramework.DbContexts;
+using Duende.IdentityServer.EntityFramework.Mappers;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Events;
+using System.Net.Http;
+using System.Reflection;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    if (context.HostingEnvironment.IsEnvironment("Testing"))
+    {
+        // Minimal logging for tests
+        configuration
+            .MinimumLevel.Warning()
+            .WriteTo.Console();
+    }
+    else
+    {
+        // Full logging configuration for non-test environments
+        configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .Enrich.WithEnvironmentName()
+            .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}");
+    }
+});
+
+// Get connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var migrationsAssembly = typeof(Program).GetTypeInfo().Assembly.GetName().Name;
+
+// Configure Entity Framework and Identity
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // Use in-memory database for testing
+    builder.Services.AddDbContext<AuthDbContext>(options =>
+        options.UseInMemoryDatabase("TestDb"));
+}
+else
+{
+    builder.Services.AddDbContext<AuthDbContext>(options =>
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+            npgsqlOptions.MigrationsAssembly(migrationsAssembly)));
+}
+
+// Configure ASP.NET Core Identity
+builder.Services.AddIdentity<AppUser, AppRole>(options =>
+{
+    // Password settings from configuration
+    options.Password.RequiredLength = builder.Configuration.GetValue<int>("Identity:Password:RequiredLength", 8);
+    options.Password.RequireDigit = builder.Configuration.GetValue<bool>("Identity:Password:RequireDigit", true);
+    options.Password.RequireUppercase = builder.Configuration.GetValue<bool>("Identity:Password:RequireUppercase", true);
+    options.Password.RequireLowercase = builder.Configuration.GetValue<bool>("Identity:Password:RequireLowercase", true);
+    options.Password.RequireNonAlphanumeric = builder.Configuration.GetValue<bool>("Identity:Password:RequireNonAlphanumeric", false);
+    
+    // User settings
+    options.User.RequireUniqueEmail = builder.Configuration.GetValue<bool>("Identity:User:RequireUniqueEmail", true);
+    
+    // Sign-in settings
+    options.SignIn.RequireConfirmedEmail = builder.Configuration.GetValue<bool>("Identity:SignIn:RequireConfirmedEmail", false);
+    
+    // Lockout settings
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+})
+.AddEntityFrameworkStores<AuthDbContext>()
+.AddDefaultTokenProviders();
+
+// Register custom password validator
+builder.Services.AddScoped<IPasswordValidator<AppUser>, AuthService.Identity.CustomPasswordValidator>();
+
+// Register custom profile service
+builder.Services.AddScoped<Duende.IdentityServer.Services.IProfileService, AuthService.IdentityServer.AppProfileService>();
+
+// Configure Duende IdentityServer
+var identityServerBuilder = builder.Services.AddIdentityServer(options =>
+{
+    options.IssuerUri = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://localhost:5001";
+    options.Events.RaiseErrorEvents = true;
+    options.Events.RaiseInformationEvents = true;
+    options.Events.RaiseFailureEvents = true;
+    options.Events.RaiseSuccessEvents = true;
+    
+    // Configure endpoints
+    options.UserInteraction.LoginUrl = "/Account/Login";
+    options.UserInteraction.LogoutUrl = "/Account/Logout";
+    options.UserInteraction.ErrorUrl = "/Error";
+    
+    // Configure token lifetimes (can be overridden per client)
+    options.Authentication.CookieLifetime = TimeSpan.FromHours(1);
+    options.Authentication.CookieSlidingExpiration = true;
+})
+.AddAspNetIdentity<AppUser>() // Integrate with ASP.NET Identity
+.AddProfileService<AuthService.IdentityServer.AppProfileService>(); // Use our custom profile service
+
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // Use in-memory stores for testing with minimal configuration
+    identityServerBuilder
+        .AddInMemoryClients(AuthService.IdentityServer.IdentityServerConfig.GetClients(true))
+        .AddInMemoryIdentityResources(AuthService.IdentityServer.IdentityServerConfig.IdentityResources)
+        .AddInMemoryApiScopes(AuthService.IdentityServer.IdentityServerConfig.ApiScopes)
+        .AddInMemoryApiResources(AuthService.IdentityServer.IdentityServerConfig.ApiResources)
+        .AddDeveloperSigningCredential();
+}
+else if (builder.Environment.IsDevelopment())
+{
+    // Use in-memory stores for development with full configuration
+    identityServerBuilder
+        .AddInMemoryClients(AuthService.IdentityServer.IdentityServerConfig.GetClients(true))
+        .AddInMemoryIdentityResources(AuthService.IdentityServer.IdentityServerConfig.IdentityResources)
+        .AddInMemoryApiScopes(AuthService.IdentityServer.IdentityServerConfig.ApiScopes)
+        .AddInMemoryApiResources(AuthService.IdentityServer.IdentityServerConfig.ApiResources)
+        .AddDeveloperSigningCredential();
+}
+else
+{
+    // Production: Use persistent stores with Entity Framework
+    identityServerBuilder
+        .AddConfigurationStore(options =>
+        {
+            options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
+                sql => sql.MigrationsAssembly(migrationsAssembly));
+        })
+        // Configure Operational Store (grants, consent, tokens, codes)
+        .AddOperationalStore(options =>
+        {
+            options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
+                sql => sql.MigrationsAssembly(migrationsAssembly));
+            
+            // Enable automatic token cleanup
+            options.EnableTokenCleanup = true;
+            options.TokenCleanupInterval = 3600; // 1 hour
+        })
+        .AddDeveloperSigningCredential(); // TODO: Replace with real certificate in production
+}
+
+// Configure JWT Bearer authentication for API endpoints
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // In testing environment, use a simple test authentication scheme
+    builder.Services.AddAuthentication("Test")
+        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, AuthService.Tests.Helpers.TestAuthHandler>("Test", options => { });
+}
+else
+{
+    // In all other environments, use JWT Bearer authentication
+    builder.Services.AddAuthentication()
+        .AddJwtBearer("Bearer", options =>
+        {
+            options.Authority = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://localhost:5001";
+            options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+            
+            options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidTypes = new[] { "at+jwt" }
+            };
+            
+            // For development, accept self-signed certificates
+            if (builder.Environment.IsDevelopment())
+            {
+                options.BackchannelHttpHandler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+                };
+            }
+        });
+}
+
+// Configure authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin");
+    });
+    
+    options.AddPolicy("ApiScope", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim("scope", "api");
+    });
+});
+
+// Add services to the container
+builder.Services.AddControllers();
+
+// Add Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Authentication Service API",
+        Version = "v1",
+        Description = "Identity Provider and Authentication Service for the Platform",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "Platform Team",
+            Email = "platform@company.com"
+        }
+    });
+
+    // Add security definition for Bearer tokens
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// Configure health checks
+var healthChecksBuilder = builder.Services.AddHealthChecks();
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    healthChecksBuilder
+        .AddDbContextCheck<AuthDbContext>("AuthDb")
+        .AddDbContextCheck<ConfigurationDbContext>("ConfigurationDb")
+        .AddDbContextCheck<PersistedGrantDbContext>("PersistedGrantDb");
+}
+
+// Add OpenAPI/Swagger support
+builder.Services.AddOpenApi();
+
+// Add MVC and Razor pages with anti-forgery
+builder.Services.AddControllersWithViews(options =>
+{
+    // Enable anti-forgery globally for POST/PUT/DELETE
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+});
+builder.Services.AddRazorPages();
+
+// Configure anti-forgery options
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "X-CSRF-TOKEN";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+    options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Strict;
+});
+
+// Configure security services
+builder.Services.AddMemoryCache(); // For rate limiting
+builder.Services.Configure<AuthService.Middleware.RateLimitOptions>(
+    builder.Configuration.GetSection("RateLimiting"));
+builder.Services.Configure<AuthService.Middleware.SecurityHeaderOptions>(
+    builder.Configuration.GetSection("SecurityHeaders"));
+builder.Services.Configure<AuthService.Security.LockoutOptions>(
+    builder.Configuration.GetSection("Lockout"));
+builder.Services.Configure<AuthService.Security.PasswordHistoryOptions>(
+    builder.Configuration.GetSection("PasswordHistory"));
+
+// Register security services
+builder.Services.AddScoped<AuthService.Security.IAccountLockoutService, AuthService.Security.AccountLockoutService>();
+builder.Services.AddScoped<AuthService.Security.IAuditLogService, AuthService.Security.AuditLogService>();
+builder.Services.AddScoped<AuthService.Security.IPasswordHistoryService, AuthService.Security.PasswordHistoryService>();
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    // Development CORS - allow local development servers
+    options.AddPolicy("DevelopmentCors", policy =>
+    {
+        var devOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? 
+            new[] { 
+                "http://localhost:3000", 
+                "http://localhost:3001", 
+                "http://localhost:3002", 
+                "http://localhost:5000", 
+                "http://localhost:5001" 
+            };
+        
+        policy.WithOrigins(devOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+    
+    // Production CORS - restrict to platform domains
+    options.AddPolicy("ProductionCors", policy =>
+    {
+        var prodOrigins = builder.Configuration.GetSection("Cors:ProductionOrigins").Get<string[]>() ?? 
+            new[] { 
+                "https://platform.com", 
+                "https://app.platform.com", 
+                "https://api.platform.com", 
+                "https://admin.platform.com",
+                "https://auth.platform.com"
+            };
+            
+        policy.WithOrigins(prodOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
+
+// Build the application
+var app = builder.Build();
+    
+// Add Serilog request logging
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+    options.GetLevel = (httpContext, elapsed, ex) => ex != null
+        ? LogEventLevel.Error
+        : httpContext.Response.StatusCode > 499
+            ? LogEventLevel.Error
+            : LogEventLevel.Information;
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value ?? "unknown");
+        diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+        diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString() ?? "unknown");
+    };
+});
+
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Authentication Service API v1");
+        options.RoutePrefix = "swagger";
+    });
+}
+
+// Add security middleware
+app.UseSecurityHeaders(); // Add security headers first
+app.UseRateLimiting(); // Add rate limiting
+
+// Use CORS based on environment
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+{
+    app.UseCors("DevelopmentCors");
+}
+else
+{
+    app.UseCors("ProductionCors");
+}
+
+// Use authentication and authorization
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Use IdentityServer
+app.UseIdentityServer();
+
+// Map controllers and views
+app.MapControllers();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Map health check endpoints with custom response
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckExtensions.WriteSimpleHealthCheckResponse
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckExtensions.WriteHealthCheckResponse
+});
+
+// Initialize database in development (but not during testing)
+if (app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
+{
+    try
+    {
+        await DatabaseSeeder.InitializeDatabaseAsync(app.Services);
+    }
+    catch (Exception ex)
+    {
+        // Log the error but don't fail startup if database is not available
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning(ex, "Failed to initialize database. This is expected if PostgreSQL is not running.");
+    }
+}
+
+app.Run();
+
+// Make Program accessible to tests
+public partial class Program { }

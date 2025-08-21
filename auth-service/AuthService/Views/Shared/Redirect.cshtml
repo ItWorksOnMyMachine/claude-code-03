@@ -1,0 +1,15 @@
+@model RedirectViewModel
+@{
+    ViewData["Title"] = "Redirecting...";
+}
+
+<div class="logo">
+    <h1>Redirecting...</h1>
+</div>
+
+<div class="alert alert-info">
+    <p>You are being redirected.</p>
+</div>
+
+<meta http-equiv="refresh" content="0;url=@Model.RedirectUrl">
+<script>window.location.replace("@Model.RedirectUrl");</script>

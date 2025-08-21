@@ -1,0 +1,240 @@
+@model AuthorizationViewModel
+@{
+    ViewData["Title"] = "Authorization";
+}
+
+<style>
+    .consent-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .app-info {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .app-logo {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+    }
+    
+    .app-name {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .app-description {
+        color: #718096;
+        font-size: 14px;
+    }
+    
+    .permissions-section {
+        background: #f7fafc;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .permissions-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 15px;
+    }
+    
+    .permission-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 15px;
+        padding: 10px;
+        background: white;
+        border-radius: 6px;
+    }
+    
+    .permission-checkbox {
+        margin-right: 12px;
+        margin-top: 2px;
+    }
+    
+    .permission-details {
+        flex: 1;
+    }
+    
+    .permission-name {
+        font-weight: 500;
+        color: #2d3748;
+        margin-bottom: 4px;
+    }
+    
+    .permission-description {
+        font-size: 13px;
+        color: #718096;
+        line-height: 1.4;
+    }
+    
+    .required-badge {
+        display: inline-block;
+        background: #fc8181;
+        color: white;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-left: 8px;
+    }
+    
+    .emphasized {
+        border-left: 3px solid #667eea;
+        padding-left: 17px;
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .button-group .btn {
+        flex: 1;
+    }
+    
+    .remember-consent {
+        margin: 20px 0;
+        padding: 15px;
+        background: #edf2f7;
+        border-radius: 6px;
+    }
+</style>
+
+<div class="consent-container">
+    <div class="app-info">
+        @if (!string.IsNullOrWhiteSpace(Model.ClientLogoUrl))
+        {
+            <img src="@Model.ClientLogoUrl" alt="@Model.ClientName" class="app-logo" />
+        }
+        <div class="app-name">@Model.ClientName</div>
+        @if (!string.IsNullOrWhiteSpace(Model.ClientUrl))
+        {
+            <div class="app-description">
+                <a href="@Model.ClientUrl" target="_blank">@Model.ClientUrl</a>
+            </div>
+        }
+    </div>
+
+    <div class="alert alert-info">
+        <strong>@Model.ClientName</strong> is requesting access to your account.
+    </div>
+
+    <form asp-action="Authorize" method="post">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <input type="hidden" asp-for="Description" />
+        
+        @if (Model.IdentityScopes.Any())
+        {
+            <div class="permissions-section">
+                <div class="permissions-title">Personal Information</div>
+                @foreach (var scope in Model.IdentityScopes)
+                {
+                    <div class="permission-item @(scope.Emphasize ? "emphasized" : "")">
+                        @if (scope.Required)
+                        {
+                            <input type="hidden" name="ScopesConsented" value="@scope.Value" />
+                            <input type="checkbox" checked disabled class="permission-checkbox" />
+                        }
+                        else
+                        {
+                            <input type="checkbox" 
+                                   name="ScopesConsented" 
+                                   value="@scope.Value" 
+                                   @(scope.Checked ? "checked" : "") 
+                                   class="permission-checkbox" />
+                        }
+                        <div class="permission-details">
+                            <div class="permission-name">
+                                @scope.DisplayName
+                                @if (scope.Required)
+                                {
+                                    <span class="required-badge">Required</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(scope.Description))
+                            {
+                                <div class="permission-description">@scope.Description</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.ApiScopes.Any())
+        {
+            <div class="permissions-section">
+                <div class="permissions-title">Application Access</div>
+                @foreach (var scope in Model.ApiScopes)
+                {
+                    <div class="permission-item @(scope.Emphasize ? "emphasized" : "")">
+                        @if (scope.Required)
+                        {
+                            <input type="hidden" name="ScopesConsented" value="@scope.Value" />
+                            <input type="checkbox" checked disabled class="permission-checkbox" />
+                        }
+                        else
+                        {
+                            <input type="checkbox" 
+                                   name="ScopesConsented" 
+                                   value="@scope.Value" 
+                                   @(scope.Checked ? "checked" : "") 
+                                   class="permission-checkbox" />
+                        }
+                        <div class="permission-details">
+                            <div class="permission-name">
+                                @scope.DisplayName
+                                @if (scope.Required)
+                                {
+                                    <span class="required-badge">Required</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(scope.Description))
+                            {
+                                <div class="permission-description">@scope.Description</div>
+                            }
+                            @if (scope.Resources.Any())
+                            {
+                                <div class="permission-description">
+                                    <strong>Resources:</strong>
+                                    @foreach (var resource in scope.Resources)
+                                    {
+                                        <span>@resource.DisplayName</span>
+                                        @if (resource != scope.Resources.Last())
+                                        {
+                                            <span>, </span>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.AllowRememberConsent)
+        {
+            <div class="remember-consent">
+                <div class="checkbox-group">
+                    <input asp-for="RememberConsent" type="checkbox" />
+                    <label asp-for="RememberConsent">Remember my decision for this application</label>
+                </div>
+            </div>
+        }
+
+        <div class="button-group">
+            <button type="submit" name="button" value="yes" class="btn btn-primary">Allow</button>
+            <button type="submit" name="button" value="no" class="btn btn-secondary">Deny</button>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,346 @@
+{
+  "dashboard": {
+    "title": "Authentication Service Dashboard",
+    "uid": "authservice-main",
+    "version": 1,
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Health",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "up{job=\"authservice\"}",
+            "legendFormat": "Status"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "value": 1, "text": "UP", "color": "green" },
+              { "type": "value", "value": 0, "text": "DOWN", "color": "red" }
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Request Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_received_total{job=\"authservice\"}[5m]))",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "yaxes": [
+          { "format": "reqps", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_received_total{job=\"authservice\",code=~\"5..\"}[5m]))",
+            "legendFormat": "5xx Errors"
+          },
+          {
+            "expr": "sum(rate(http_requests_received_total{job=\"authservice\",code=~\"4..\"}[5m]))",
+            "legendFormat": "4xx Errors"
+          }
+        ],
+        "yaxes": [
+          { "format": "reqps", "show": true },
+          { "show": false }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": { "params": [0.05], "type": "gt" },
+              "operator": { "type": "and" },
+              "query": { "model": "5xx Errors", "params": ["A", "5m", "now"] },
+              "reducer": { "params": [], "type": "avg" },
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "name": "High Error Rate",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 4,
+        "title": "Authentication Metrics",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }
+      },
+      {
+        "id": 5,
+        "title": "Login Attempts",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+        "targets": [
+          {
+            "expr": "sum(rate(authservice_login_attempts_total{status=\"success\"}[5m]))",
+            "legendFormat": "Successful"
+          },
+          {
+            "expr": "sum(rate(authservice_login_attempts_total{status=\"failed\"}[5m]))",
+            "legendFormat": "Failed"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Tokens Issued",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 9 },
+        "targets": [
+          {
+            "expr": "sum(rate(authservice_tokens_issued_total[5m])) by (grant_type)",
+            "legendFormat": "{{ grant_type }}"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Active Sessions",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
+        "targets": [
+          {
+            "expr": "sum(authservice_active_sessions)",
+            "legendFormat": "Total Sessions"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Security Metrics",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }
+      },
+      {
+        "id": 9,
+        "title": "Failed Authentications",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+        "targets": [
+          {
+            "expr": "sum(rate(authservice_failed_authentications_total[5m])) by (reason)",
+            "legendFormat": "{{ reason }}"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Account Lockouts",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+        "targets": [
+          {
+            "expr": "sum(increase(authservice_account_lockouts_total[1h]))",
+            "legendFormat": "Last Hour"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Rate Limit Violations",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+        "targets": [
+          {
+            "expr": "sum(rate(authservice_rate_limit_hits_total[5m])) by (endpoint)",
+            "legendFormat": "{{ endpoint }}"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Performance Metrics",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 }
+      },
+      {
+        "id": 13,
+        "title": "Response Time (95th percentile)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"authservice\"}[5m])) by (le))",
+            "legendFormat": "p95 Response Time"
+          }
+        ],
+        "yaxes": [
+          { "format": "s", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Authentication Duration",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(authservice_authentication_duration_seconds_bucket[5m])) by (operation, le))",
+            "legendFormat": "{{ operation }}"
+          }
+        ],
+        "yaxes": [
+          { "format": "s", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Infrastructure",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 }
+      },
+      {
+        "id": 16,
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 36 },
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{job=\"authservice\"}[5m]) * 100",
+            "legendFormat": "CPU %"
+          }
+        ],
+        "yaxes": [
+          { "format": "percent", "max": 100, "min": 0, "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 36 },
+        "targets": [
+          {
+            "expr": "process_working_set_bytes{job=\"authservice\"} / 1024 / 1024",
+            "legendFormat": "Working Set (MB)"
+          }
+        ],
+        "yaxes": [
+          { "format": "decmbytes", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 18,
+        "title": "Database Connections",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 36 },
+        "targets": [
+          {
+            "expr": "authservice_database_connections",
+            "legendFormat": "Active Connections"
+          }
+        ]
+      },
+      {
+        "id": 19,
+        "title": "GC Collections",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+        "targets": [
+          {
+            "expr": "increase(dotnet_gc_collections_total{job=\"authservice\"}[5m])",
+            "legendFormat": "Gen {{ generation }}"
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "Certificate Expiry",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+        "targets": [
+          {
+            "expr": "(authservice_certificate_expiry_timestamp_seconds - time()) / 86400",
+            "legendFormat": "Days Until Expiry"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 7, "color": "orange" },
+                { "value": 30, "color": "yellow" },
+                { "value": 90, "color": "green" }
+              ]
+            },
+            "unit": "d"
+          }
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "text": "Prometheus",
+            "value": "Prometheus"
+          }
+        },
+        {
+          "name": "refresh_interval",
+          "type": "interval",
+          "options": [
+            { "text": "5s", "value": "5s" },
+            { "text": "10s", "value": "10s" },
+            { "text": "30s", "value": "30s" },
+            { "text": "1m", "value": "1m" },
+            { "text": "5m", "value": "5m" }
+          ],
+          "current": {
+            "text": "30s",
+            "value": "30s"
+          }
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{service=\"authservice\"}",
+          "iconColor": "red",
+          "name": "Alerts",
+          "tagKeys": "severity",
+          "textFormat": "{{ alertname }}: {{ summary }}"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+@model LogoutViewModel
+@{
+    ViewData["Title"] = "Sign Out";
+}
+
+<div class="logo">
+    <h1>Sign Out</h1>
+</div>
+
+<div class="alert alert-info">
+    <p>Are you sure you want to sign out?</p>
+</div>
+
+<form asp-action="Logout" method="post">
+    <input type="hidden" asp-for="LogoutId" />
+    
+    <button type="submit" class="btn btn-primary">Yes, Sign Out</button>
+    <a href="javascript:history.back()" class="btn btn-secondary" style="display:inline-block; text-decoration:none; text-align:center; margin-top:10px;">Cancel</a>
+</form>

@@ -1,0 +1,31 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="logo">
+    <h1>Error</h1>
+</div>
+
+<div class="alert alert-danger">
+    @if (Model.Error != null)
+    {
+        <h3>@Model.Error.Error</h3>
+        @if (!string.IsNullOrWhiteSpace(Model.Error.ErrorDescription))
+        {
+            <p>@Model.Error.ErrorDescription</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Error.RequestId))
+        {
+            <p><small>Request ID: @Model.Error.RequestId</small></p>
+        }
+    }
+    else
+    {
+        <p>An unexpected error occurred. Please try again later.</p>
+    }
+</div>
+
+<div style="margin-top: 20px;">
+    <a href="/" class="btn btn-primary">Return to Home</a>
+</div>
