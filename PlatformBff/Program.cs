@@ -94,7 +94,7 @@ builder.Services.AddAuthentication(options =>
     options.ResponseType = OpenIdConnectResponseType.Code;
     options.SaveTokens = true;
     options.GetClaimsFromUserInfoEndpoint = true;
-    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing");
     
     // Scopes
     options.Scope.Clear();
