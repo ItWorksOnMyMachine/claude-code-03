@@ -65,8 +65,13 @@ public class AuthController : ControllerBase
         
         if (!string.IsNullOrEmpty(sessionId))
         {
+            // Revoke tokens at the authorization server
+            await _sessionService.RevokeTokensAsync(sessionId);
+            
+            // Remove session from Redis
             await _sessionService.RemoveSessionAsync(sessionId);
-            _logger.LogInformation("Session {SessionId} removed", sessionId);
+            
+            _logger.LogInformation("Session {SessionId} removed and tokens revoked", sessionId);
         }
         
         return SignOut(

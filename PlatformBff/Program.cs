@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient();
 
 // Add DbContext with PostgreSQL and tenant context
 builder.Services.AddDbContext<PlatformDbContext>((serviceProvider, options) =>
@@ -189,6 +190,10 @@ app.UseSession(); // Add session middleware
 
 // Add authentication middleware
 app.UseAuthentication();
+
+// Add token refresh middleware AFTER authentication
+app.UseMiddleware<PlatformBff.Middleware.TokenRefreshMiddleware>();
+
 app.UseAuthorization();
 
 app.UseTenantContext(); // Add tenant context middleware after authentication

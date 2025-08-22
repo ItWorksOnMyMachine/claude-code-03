@@ -1,9 +1,12 @@
 using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PlatformBff.Models;
 
@@ -17,6 +20,8 @@ public class RedisSessionService : ISessionService
     private readonly IDistributedCache _cache;
     private readonly IDataProtector _protector;
     private readonly ILogger<RedisSessionService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private readonly JsonSerializerOptions _jsonOptions;
     
     private const string TokenKeyPrefix = "session:tokens:";
@@ -26,11 +31,15 @@ public class RedisSessionService : ISessionService
     public RedisSessionService(
         IDistributedCache cache,
         IDataProtectionProvider dataProtectionProvider,
-        ILogger<RedisSessionService> logger)
+        ILogger<RedisSessionService> logger,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _cache = cache;
         _protector = dataProtectionProvider.CreateProtector("SessionTokens");
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -178,10 +187,65 @@ public class RedisSessionService : ISessionService
         }
     }
 
-    public async Task RefreshTokensAsync(string sessionId, TokenData newTokens)
+    public async Task<TokenData?> RefreshTokensAsync(string sessionId, string refreshToken)
     {
         try
         {
+            // Get OIDC configuration
+            var authority = _configuration["Authentication:Authority"];
+            var clientId = _configuration["Authentication:ClientId"];
+            var clientSecret = _configuration["Authentication:ClientSecret"];
+            
+            if (string.IsNullOrEmpty(authority) || string.IsNullOrEmpty(clientId))
+            {
+                _logger.LogError("OIDC configuration missing for token refresh");
+                return null;
+            }
+            
+            // Create HTTP client for token endpoint
+            var httpClient = _httpClientFactory.CreateClient();
+            var tokenEndpoint = $"{authority}/connect/token";
+            
+            // Prepare refresh token request
+            var requestContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                new KeyValuePair<string, string>("refresh_token", refreshToken),
+                new KeyValuePair<string, string>("client_id", clientId),
+                new KeyValuePair<string, string>("client_secret", clientSecret ?? string.Empty)
+            });
+            
+            // Make token refresh request
+            var response = await httpClient.PostAsync(tokenEndpoint, requestContent);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Token refresh failed: {Error}", error);
+                return null;
+            }
+            
+            // Parse response
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            var tokenResponse = JsonSerializer.Deserialize<JsonElement>(jsonResponse);
+            
+            // Extract tokens
+            var newTokens = new TokenData
+            {
+                AccessToken = tokenResponse.GetProperty("access_token").GetString() ?? string.Empty,
+                RefreshToken = tokenResponse.TryGetProperty("refresh_token", out var rt) 
+                    ? rt.GetString() ?? refreshToken // Use old refresh token if not rotated
+                    : refreshToken,
+                IdToken = tokenResponse.TryGetProperty("id_token", out var it) 
+                    ? it.GetString() 
+                    : null,
+                ExpiresAt = DateTime.UtcNow.AddSeconds(
+                    tokenResponse.TryGetProperty("expires_in", out var exp) 
+                        ? exp.GetInt32() 
+                        : 3600)
+            };
+            
+            // Store the new tokens
             await StoreTokensAsync(sessionId, newTokens);
             
             // Update session last accessed time
@@ -189,15 +253,82 @@ public class RedisSessionService : ISessionService
             if (sessionData != null)
             {
                 sessionData.LastAccessedAt = DateTime.UtcNow;
+                sessionData.ExpiresAt = newTokens.ExpiresAt;
                 await StoreSessionDataAsync(sessionId, sessionData);
             }
             
-            _logger.LogDebug("Refreshed tokens for session {SessionId}", sessionId);
+            _logger.LogInformation("Successfully refreshed tokens for session {SessionId}", sessionId);
+            return newTokens;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to refresh tokens for session {SessionId}", sessionId);
             throw;
+        }
+    }
+    
+    public async Task RevokeTokensAsync(string sessionId)
+    {
+        try
+        {
+            var tokens = await GetTokensAsync(sessionId);
+            if (tokens == null || string.IsNullOrEmpty(tokens.AccessToken))
+            {
+                _logger.LogDebug("No tokens to revoke for session {SessionId}", sessionId);
+                return;
+            }
+            
+            // Get OIDC configuration
+            var authority = _configuration["Authentication:Authority"];
+            var clientId = _configuration["Authentication:ClientId"];
+            var clientSecret = _configuration["Authentication:ClientSecret"];
+            
+            if (string.IsNullOrEmpty(authority))
+            {
+                _logger.LogWarning("OIDC authority not configured for token revocation");
+                return;
+            }
+            
+            // Create HTTP client for revocation endpoint
+            var httpClient = _httpClientFactory.CreateClient();
+            var revocationEndpoint = $"{authority}/connect/revocation";
+            
+            // Revoke access token
+            var requestContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("token", tokens.AccessToken),
+                new KeyValuePair<string, string>("token_type_hint", "access_token"),
+                new KeyValuePair<string, string>("client_id", clientId ?? string.Empty),
+                new KeyValuePair<string, string>("client_secret", clientSecret ?? string.Empty)
+            });
+            
+            var response = await httpClient.PostAsync(revocationEndpoint, requestContent);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Token revocation failed with status {StatusCode}", response.StatusCode);
+            }
+            
+            // Also revoke refresh token if present
+            if (!string.IsNullOrEmpty(tokens.RefreshToken))
+            {
+                requestContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("token", tokens.RefreshToken),
+                    new KeyValuePair<string, string>("token_type_hint", "refresh_token"),
+                    new KeyValuePair<string, string>("client_id", clientId ?? string.Empty),
+                    new KeyValuePair<string, string>("client_secret", clientSecret ?? string.Empty)
+                });
+                
+                await httpClient.PostAsync(revocationEndpoint, requestContent);
+            }
+            
+            _logger.LogInformation("Revoked tokens for session {SessionId}", sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to revoke tokens for session {SessionId}", sessionId);
+            // Don't throw - revocation is best effort
         }
     }
 

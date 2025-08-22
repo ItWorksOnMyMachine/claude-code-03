@@ -35,9 +35,14 @@ public interface ISessionService
     Task RemoveSessionAsync(string sessionId);
     
     /// <summary>
-    /// Updates refresh token for a session
+    /// Refreshes tokens using the provided refresh token
     /// </summary>
-    Task RefreshTokensAsync(string sessionId, TokenData newTokens);
+    Task<TokenData?> RefreshTokensAsync(string sessionId, string refreshToken);
+    
+    /// <summary>
+    /// Revokes tokens for a session (used during logout)
+    /// </summary>
+    Task RevokeTokensAsync(string sessionId);
     
     /// <summary>
     /// Stores session metadata (user info, tenant, etc.)
