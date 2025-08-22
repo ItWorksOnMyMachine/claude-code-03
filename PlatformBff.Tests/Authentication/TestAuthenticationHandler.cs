@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -10,13 +11,18 @@ namespace PlatformBff.Tests.Authentication;
 public class TestAuthenticationSchemeOptions : AuthenticationSchemeOptions
 {
     public bool IsAuthenticated { get; set; } = false;
+    
+    public TestAuthenticationSchemeOptions()
+    {
+        TimeProvider = TimeProvider.System;
+    }
 }
 
 public class TestAuthenticationHandler : AuthenticationHandler<TestAuthenticationSchemeOptions>
 {
     public TestAuthenticationHandler(IOptionsMonitor<TestAuthenticationSchemeOptions> options,
-        ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock)
-        : base(options, logger, encoder, clock)
+        ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder)
     {
     }
 
