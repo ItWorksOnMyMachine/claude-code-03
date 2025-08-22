@@ -1,7 +1,14 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Moq;
+using PlatformBff.Models;
+using PlatformBff.Services;
+using System;
+using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace PlatformBff.Tests.Authentication;
@@ -9,18 +16,29 @@ namespace PlatformBff.Tests.Authentication;
 public class SessionServiceTests
 {
     private readonly Mock<IDistributedCache> _cacheMock;
-    private readonly Mock<ILogger<ISessionService>> _loggerMock;
+    private readonly IDataProtectionProvider _dataProtectionProvider;
+    private readonly Mock<ILogger<RedisSessionService>> _loggerMock;
     private readonly ISessionService _sessionService;
+    private readonly JsonSerializerOptions _jsonOptions;
 
     public SessionServiceTests()
     {
         _cacheMock = new Mock<IDistributedCache>();
-        _loggerMock = new Mock<ILogger<ISessionService>>();
-        // Will be created once we implement the service
-        // _sessionService = new RedisSessionService(_cacheMock.Object, _loggerMock.Object);
+        _dataProtectionProvider = new TestDataProtectionProvider();
+        _loggerMock = new Mock<ILogger<RedisSessionService>>();
+            
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        
+        _sessionService = new RedisSessionService(
+            _cacheMock.Object, 
+            _dataProtectionProvider, 
+            _loggerMock.Object);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task StoreTokens_Should_Save_Tokens_To_Cache()
     {
         // Arrange
@@ -37,14 +55,14 @@ public class SessionServiceTests
 
         // Assert
         _cacheMock.Verify(x => x.SetAsync(
-            It.Is<string>(key => key.Contains(sessionId)),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
             It.IsAny<byte[]>(),
             It.IsAny<DistributedCacheEntryOptions>(),
             It.IsAny<CancellationToken>()
         ), Times.Once);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task GetTokens_Should_Retrieve_Tokens_From_Cache()
     {
         // Arrange
@@ -56,13 +74,13 @@ public class SessionServiceTests
             ExpiresAt = DateTime.UtcNow.AddHours(1)
         };
         
-        var tokenJson = JsonSerializer.Serialize(tokens);
-        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(tokenJson);
+        var json = JsonSerializer.Serialize(tokens, _jsonOptions);
+        var bytes = Encoding.UTF8.GetBytes(json);
         
         _cacheMock.Setup(x => x.GetAsync(
-            It.IsAny<string>(),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
             It.IsAny<CancellationToken>()
-        )).ReturnsAsync(tokenBytes);
+        )).ReturnsAsync(bytes);
 
         // Act
         var result = await _sessionService.GetTokensAsync(sessionId);
@@ -73,7 +91,7 @@ public class SessionServiceTests
         Assert.Equal(tokens.RefreshToken, result.RefreshToken);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task GetTokens_Should_Return_Null_When_Session_Not_Found()
     {
         // Arrange
@@ -90,7 +108,7 @@ public class SessionServiceTests
         Assert.Null(result);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task RemoveSession_Should_Delete_From_Cache()
     {
         // Arrange
@@ -101,12 +119,17 @@ public class SessionServiceTests
 
         // Assert
         _cacheMock.Verify(x => x.RemoveAsync(
-            It.Is<string>(key => key.Contains(sessionId)),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
+            It.IsAny<CancellationToken>()
+        ), Times.Once);
+        
+        _cacheMock.Verify(x => x.RemoveAsync(
+            It.Is<string>(key => key == $"session:data:{sessionId}"),
             It.IsAny<CancellationToken>()
         ), Times.Once);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task RefreshTokens_Should_Update_Stored_Tokens()
     {
         // Arrange
@@ -123,32 +146,49 @@ public class SessionServiceTests
 
         // Assert
         _cacheMock.Verify(x => x.SetAsync(
-            It.Is<string>(key => key.Contains(sessionId)),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
             It.IsAny<byte[]>(),
             It.IsAny<DistributedCacheEntryOptions>(),
             It.IsAny<CancellationToken>()
         ), Times.Once);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task IsSessionValid_Should_Return_True_For_Valid_Session()
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
+        var futureTime = DateTime.UtcNow.AddHours(1);
+        
         var tokens = new TokenData
         {
             AccessToken = "test_access_token",
             RefreshToken = "test_refresh_token",
-            ExpiresAt = DateTime.UtcNow.AddHours(1)
+            ExpiresAt = futureTime
         };
         
-        var tokenJson = JsonSerializer.Serialize(tokens);
-        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(tokenJson);
+        var sessionData = new SessionData
+        {
+            SessionId = sessionId,
+            UserId = "test_user",
+            ExpiresAt = futureTime
+        };
+        
+        var tokenJson = JsonSerializer.Serialize(tokens, _jsonOptions);
+        var tokenBytes = Encoding.UTF8.GetBytes(tokenJson);
+        
+        var sessionJson = JsonSerializer.Serialize(sessionData, _jsonOptions);
+        var sessionBytes = Encoding.UTF8.GetBytes(sessionJson);
         
         _cacheMock.Setup(x => x.GetAsync(
-            It.IsAny<string>(),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
             It.IsAny<CancellationToken>()
         )).ReturnsAsync(tokenBytes);
+        
+        _cacheMock.Setup(x => x.GetAsync(
+            It.Is<string>(key => key == $"session:data:{sessionId}"),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync(sessionBytes);
 
         // Act
         var result = await _sessionService.IsSessionValidAsync(sessionId);
@@ -157,23 +197,25 @@ public class SessionServiceTests
         Assert.True(result);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task IsSessionValid_Should_Return_False_For_Expired_Session()
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
+        var pastTime = DateTime.UtcNow.AddHours(-1);
+        
         var tokens = new TokenData
         {
             AccessToken = "test_access_token",
             RefreshToken = "test_refresh_token",
-            ExpiresAt = DateTime.UtcNow.AddHours(-1) // Expired
+            ExpiresAt = pastTime
         };
         
-        var tokenJson = JsonSerializer.Serialize(tokens);
-        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(tokenJson);
+        var tokenJson = JsonSerializer.Serialize(tokens, _jsonOptions);
+        var tokenBytes = Encoding.UTF8.GetBytes(tokenJson);
         
         _cacheMock.Setup(x => x.GetAsync(
-            It.IsAny<string>(),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
             It.IsAny<CancellationToken>()
         )).ReturnsAsync(tokenBytes);
 
@@ -184,43 +226,60 @@ public class SessionServiceTests
         Assert.False(result);
     }
 
-    [Fact(Skip = "Implementation pending")]
+    [Fact]
     public async Task ExtendSession_Should_Update_Expiration()
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var additionalMinutes = 30;
+        var extension = TimeSpan.FromHours(1);
+        var originalExpiry = DateTime.UtcNow.AddHours(1);
+        
+        var tokens = new TokenData
+        {
+            AccessToken = "test_access_token",
+            RefreshToken = "test_refresh_token",
+            ExpiresAt = originalExpiry
+        };
+        
+        var sessionData = new SessionData
+        {
+            SessionId = sessionId,
+            UserId = "test_user",
+            ExpiresAt = originalExpiry
+        };
+        
+        var tokenJson = JsonSerializer.Serialize(tokens, _jsonOptions);
+        var tokenBytes = Encoding.UTF8.GetBytes(tokenJson);
+        
+        var sessionJson = JsonSerializer.Serialize(sessionData, _jsonOptions);
+        var sessionBytes = Encoding.UTF8.GetBytes(sessionJson);
+        
+        _cacheMock.Setup(x => x.GetAsync(
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync(tokenBytes);
+        
+        _cacheMock.Setup(x => x.GetAsync(
+            It.Is<string>(key => key == $"session:data:{sessionId}"),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync(sessionBytes);
 
         // Act
-        await _sessionService.ExtendSessionAsync(sessionId, additionalMinutes);
+        await _sessionService.ExtendSessionAsync(sessionId, extension);
 
         // Assert
         _cacheMock.Verify(x => x.SetAsync(
-            It.Is<string>(key => key.Contains(sessionId)),
+            It.Is<string>(key => key == $"session:tokens:{sessionId}"),
             It.IsAny<byte[]>(),
-            It.Is<DistributedCacheEntryOptions>(opts => 
-                opts.SlidingExpiration == TimeSpan.FromMinutes(additionalMinutes)),
+            It.IsAny<DistributedCacheEntryOptions>(),
+            It.IsAny<CancellationToken>()
+        ), Times.Once);
+        
+        _cacheMock.Verify(x => x.SetAsync(
+            It.Is<string>(key => key == $"session:data:{sessionId}"),
+            It.IsAny<byte[]>(),
+            It.IsAny<DistributedCacheEntryOptions>(),
             It.IsAny<CancellationToken>()
         ), Times.Once);
     }
-}
-
-// Temporary interfaces/classes for testing - will be moved to actual implementation
-public interface ISessionService
-{
-    Task StoreTokensAsync(string sessionId, TokenData tokens);
-    Task<TokenData?> GetTokensAsync(string sessionId);
-    Task RemoveSessionAsync(string sessionId);
-    Task RefreshTokensAsync(string sessionId, TokenData newTokens);
-    Task<bool> IsSessionValidAsync(string sessionId);
-    Task ExtendSessionAsync(string sessionId, int additionalMinutes);
-}
-
-public class TokenData
-{
-    public string AccessToken { get; set; } = string.Empty;
-    public string RefreshToken { get; set; } = string.Empty;
-    public string? IdToken { get; set; }
-    public DateTime ExpiresAt { get; set; }
-    public Dictionary<string, string>? AdditionalClaims { get; set; }
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using PlatformBff.Data;
@@ -39,12 +40,24 @@ if (!string.IsNullOrEmpty(redisConnection))
         options.Configuration = redisConnection;
         options.InstanceName = "PlatformBff";
     });
+    
+    // Configure Data Protection with Redis for distributed key storage
+    var redis = ConnectionMultiplexer.Connect(redisConnection);
+    builder.Services.AddDataProtection()
+        .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys")
+        .SetApplicationName("PlatformBff");
 }
 else
 {
     // Fallback to in-memory cache if Redis is not configured
     builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddDataProtection()
+        .SetApplicationName("PlatformBff");
 }
+
+// Add Session Service for token management
+builder.Services.AddScoped<ISessionService, RedisSessionService>();
+
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromHours(2);
