@@ -2,11 +2,11 @@
 
 ## Tasks
 
-- [ ] 1. Set Up Redis Infrastructure
-  - [ ] 1.1 Add Redis Docker container to docker-compose.yml
-  - [ ] 1.2 Configure Redis connection in appsettings
-  - [ ] 1.3 Test Redis connectivity
-  - [ ] 1.4 Verify Redis is running
+- [x] 1. Set Up Redis Infrastructure ✅
+  - [x] 1.1 Add Redis Docker container to docker-compose.yml
+  - [x] 1.2 Configure Redis connection in appsettings
+  - [x] 1.3 Test Redis connectivity
+  - [x] 1.4 Verify Redis is running
 
 - [ ] 2. Configure OIDC Authentication
   - [ ] 2.1 Write tests for authentication configuration

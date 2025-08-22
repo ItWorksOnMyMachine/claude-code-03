@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: platform-postgres-auth
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d authdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-platform:
+    image: postgres:16-alpine
+    container_name: platform-postgres-platform
+    environment:
+      POSTGRES_DB: platformdb
+      POSTGRES_USER: platformuser
+      POSTGRES_PASSWORD: platformpass
+    volumes:
+      - postgres-platform-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platformuser -d platformdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: platform-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  platform-network:
+    driver: bridge
+
+volumes:
+  postgres-auth-data:
+  postgres-platform-data:
+  redis-data:
