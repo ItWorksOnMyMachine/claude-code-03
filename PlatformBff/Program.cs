@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlatformBff.Data;
 using PlatformBff.Services;
+using PlatformBff.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,11 @@ builder.Services.AddDbContext<PlatformDbContext>((serviceProvider, options) =>
 
 // Add Tenant Context
 builder.Services.AddScoped<ITenantContext, TenantContext>();
+
+// Add Repositories
+builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+builder.Services.AddScoped<ITenantRepository, TenantRepository>();
+builder.Services.AddScoped<ITenantUserRepository, TenantUserRepository>();
 
 // Add session support for tenant storage
 builder.Services.AddDistributedMemoryCache();
