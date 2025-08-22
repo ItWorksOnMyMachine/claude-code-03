@@ -42,16 +42,55 @@ public class AuthController : ControllerBase
         
         _logger.LogInformation("Login initiated with return URL: {ReturnUrl}", returnUrl);
         
-        var properties = new AuthenticationProperties
+        // For API calls, return the auth URL instead of Challenge
+        if (Request.Headers["Accept"].ToString().Contains("application/json"))
         {
-            RedirectUri = returnUrl,
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = "/api/auth/callback",
+                Items =
+                {
+                    ["returnUrl"] = returnUrl
+                }
+            };
+            
+            var authUrl = $"{Request.Scheme}://{Request.Host}/api/auth/challenge?returnUrl={Uri.EscapeDataString(returnUrl)}";
+            
+            return Task.FromResult<IActionResult>(Ok(new LoginResponse
+            {
+                RedirectUrl = authUrl
+            }));
+        }
+        
+        // For browser requests, return Challenge
+        var challengeProperties = new AuthenticationProperties
+        {
+            RedirectUri = "/api/auth/callback",
             Items =
             {
                 ["returnUrl"] = returnUrl
             }
         };
         
-        return Task.FromResult<IActionResult>(Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme));
+        return Task.FromResult<IActionResult>(Challenge(challengeProperties, OpenIdConnectDefaults.AuthenticationScheme));
+    }
+
+    /// <summary>
+    /// Challenge endpoint for browser-based auth flow
+    /// </summary>
+    [HttpGet("challenge")]
+    public IActionResult Challenge(string returnUrl = "/")
+    {
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = "/api/auth/callback",
+            Items =
+            {
+                ["returnUrl"] = returnUrl
+            }
+        };
+        
+        return Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     /// <summary>
@@ -161,12 +200,14 @@ public class AuthController : ControllerBase
             
             _logger.LogInformation("User {UserId} authenticated successfully", userId);
             
-            // Redirect to return URL
+            // Redirect to return URL - redirect to frontend callback page
             var returnUrl = HttpContext.Items["returnUrl"]?.ToString() ?? 
                            authResult.Properties?.Items["returnUrl"] ?? 
                            "/";
             
-            return Redirect(returnUrl);
+            // Redirect to frontend with auth callback indicator
+            var frontendUrl = _configuration["Frontend:Url"] ?? "http://localhost:3002";
+            return Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
         }
         catch (Exception ex)
         {

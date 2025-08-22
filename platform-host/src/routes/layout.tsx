@@ -3,6 +3,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '@/components/layout';
 import { ModuleFederationProvider } from '@/contexts/ModuleFederationContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import theme from '@/theme/theme';
 
@@ -20,13 +21,15 @@ export default function Layout() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <ModuleFederationProvider>
-          <ErrorBoundary>
-            <AppShell>
-              <Outlet />
-            </AppShell>
-          </ErrorBoundary>
-        </ModuleFederationProvider>
+        <AuthProvider>
+          <ModuleFederationProvider>
+            <ErrorBoundary>
+              <AppShell>
+                <Outlet />
+              </AppShell>
+            </ErrorBoundary>
+          </ModuleFederationProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

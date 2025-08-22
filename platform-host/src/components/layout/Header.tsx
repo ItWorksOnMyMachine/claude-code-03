@@ -8,8 +8,12 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Button,
+  Divider,
 } from '@mui/material';
-import { Menu as MenuIcon, User } from 'lucide-react';
+import { Menu as MenuIcon, User, LogIn, LogOut } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from '@modern-js/runtime/router';
 
 export interface HeaderProps {
   onMenuClick: () => void;
@@ -21,6 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
   title = 'Platform Host' 
 }) => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -28,6 +34,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleUserMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleUserMenuClose();
+    await logout();
+  };
+
+  const handleLogin = () => {
+    navigate('/login');
   };
 
   return (
@@ -58,38 +73,66 @@ export const Header: React.FC<HeaderProps> = ({
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton
-            onClick={handleUserMenuOpen}
-            size="small"
-            aria-label="user menu"
-            aria-controls={anchorEl ? 'user-menu' : undefined}
-            aria-haspopup="true"
-            aria-expanded={anchorEl ? 'true' : undefined}
-          >
-            <Avatar sx={{ width: 32, height: 32 }}>
-              <User size={20} />
-            </Avatar>
-          </IconButton>
+          {isAuthenticated ? (
+            <>
+              <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                {user?.name || user?.email || 'User'}
+              </Typography>
+              <IconButton
+                onClick={handleUserMenuOpen}
+                size="small"
+                aria-label="user menu"
+                aria-controls={anchorEl ? 'user-menu' : undefined}
+                aria-haspopup="true"
+                aria-expanded={anchorEl ? 'true' : undefined}
+              >
+                <Avatar sx={{ width: 32, height: 32 }}>
+                  <User size={20} />
+                </Avatar>
+              </IconButton>
+            </>
+          ) : (
+            <Button
+              variant="outlined"
+              startIcon={<LogIn size={16} />}
+              onClick={handleLogin}
+              size="small"
+            >
+              Sign In
+            </Button>
+          )}
         </Box>
 
-        <Menu
-          id="user-menu"
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleUserMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          <MenuItem onClick={handleUserMenuClose}>Profile</MenuItem>
-          <MenuItem onClick={handleUserMenuClose}>Settings</MenuItem>
-          <MenuItem onClick={handleUserMenuClose}>Logout</MenuItem>
-        </Menu>
+        {isAuthenticated && (
+          <Menu
+            id="user-menu"
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleUserMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem disabled>
+              <Typography variant="caption" color="text.secondary">
+                {user?.email}
+              </Typography>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={handleUserMenuClose}>Profile</MenuItem>
+            <MenuItem onClick={handleUserMenuClose}>Settings</MenuItem>
+            <Divider />
+            <MenuItem onClick={handleLogout}>
+              <LogOut size={16} style={{ marginRight: 8 }} />
+              Logout
+            </MenuItem>
+          </Menu>
+        )}
       </Toolbar>
     </AppBar>
   );
