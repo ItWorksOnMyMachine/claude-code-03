@@ -8,14 +8,14 @@
   - [x] 1.3 Test Redis connectivity
   - [x] 1.4 Verify Redis is running
 
-- [ ] 2. Configure OIDC Authentication
-  - [ ] 2.1 Write tests for authentication configuration
-  - [ ] 2.2 Add OIDC and Cookie authentication packages
-  - [ ] 2.3 Configure authentication services in Program.cs
-  - [ ] 2.4 Set up OIDC client settings in appsettings
-  - [ ] 2.5 Configure cookie authentication options
-  - [ ] 2.6 Add authentication middleware to pipeline
-  - [ ] 2.7 Verify configuration with auth-service
+- [x] 2. Configure OIDC Authentication ✅
+  - [x] 2.1 Write tests for authentication configuration
+  - [x] 2.2 Add OIDC and Cookie authentication packages
+  - [x] 2.3 Configure authentication services in Program.cs
+  - [x] 2.4 Set up OIDC client settings in appsettings
+  - [x] 2.5 Configure cookie authentication options
+  - [x] 2.6 Add authentication middleware to pipeline
+  - [x] 2.7 Verify configuration with auth-service
 
 - [ ] 3. Implement Session Management
   - [ ] 3.1 Write tests for session storage

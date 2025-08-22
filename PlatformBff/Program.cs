@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using PlatformBff.Data;
 using PlatformBff.Services;
 using PlatformBff.Repositories;
@@ -49,6 +53,95 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "platform.session";
 });
 
+// Add Authentication services
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    options.Cookie.Name = "platform.auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.ExpireTimeSpan = TimeSpan.FromHours(2);
+    options.SlidingExpiration = true;
+    options.LoginPath = "/api/auth/login";
+    options.LogoutPath = "/api/auth/logout";
+    options.AccessDeniedPath = "/api/auth/access-denied";
+    
+    options.Events = new CookieAuthenticationEvents
+    {
+        OnValidatePrincipal = async context =>
+        {
+            // Will be used to validate session tokens from Redis
+            var sessionId = context.Properties.GetTokenValue("session_id");
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                context.RejectPrincipal();
+            }
+        }
+    };
+})
+.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    options.Authority = builder.Configuration["Authentication:Authority"] ?? "http://localhost:5001";
+    options.ClientId = builder.Configuration["Authentication:ClientId"] ?? "platform-bff";
+    options.ClientSecret = builder.Configuration["Authentication:ClientSecret"] ?? "platform-bff-secret";
+    options.ResponseType = OpenIdConnectResponseType.Code;
+    options.SaveTokens = true;
+    options.GetClaimsFromUserInfoEndpoint = true;
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    
+    // Scopes
+    options.Scope.Clear();
+    options.Scope.Add("openid");
+    options.Scope.Add("profile");
+    options.Scope.Add("email");
+    options.Scope.Add("offline_access");
+    
+    // Map claims
+    options.ClaimActions.MapJsonKey("preferred_username", "preferred_username");
+    options.ClaimActions.MapJsonKey("email", "email");
+    options.ClaimActions.MapJsonKey("name", "name");
+    
+    // Configure events
+    options.Events = new OpenIdConnectEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            // Store tokens in Redis after successful authentication
+            var sessionId = Guid.NewGuid().ToString();
+            context.Properties!.SetString("session_id", sessionId);
+            
+            // Token storage will be implemented with ISessionService
+            await Task.CompletedTask;
+        },
+        OnRedirectToIdentityProviderForSignOut = context =>
+        {
+            // Clear session from Redis on sign out
+            var sessionId = context.Properties?.GetString("session_id");
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                // Session cleanup will be implemented with ISessionService
+            }
+            return Task.CompletedTask;
+        },
+        OnRemoteFailure = context =>
+        {
+            context.Response.Redirect("/api/auth/error?message=" + context.Failure?.Message);
+            context.HandleResponse();
+            return Task.CompletedTask;
+        }
+    };
+});
+
+// Add Authorization
+builder.Services.AddAuthorization();
+
 // Add CORS for development
 builder.Services.AddCors(options =>
 {
@@ -80,8 +173,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseSession(); // Add session middleware
-app.UseTenantContext(); // Add tenant context middleware
+
+// Add authentication middleware
+app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseTenantContext(); // Add tenant context middleware after authentication
 app.MapControllers();
 
 // Health check endpoint
@@ -138,3 +235,5 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+public partial class Program { } // Make Program accessible for testing
