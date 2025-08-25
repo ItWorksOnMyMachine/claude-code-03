@@ -59,7 +59,8 @@ public class AuthControllerTests
         // Assert
         var challengeResult = Assert.IsType<ChallengeResult>(result);
         Assert.Equal(OpenIdConnectDefaults.AuthenticationScheme, challengeResult.AuthenticationSchemes[0]);
-        Assert.Equal("/dashboard", challengeResult.Properties.RedirectUri);
+        Assert.Equal("/api/auth/callback", challengeResult.Properties.RedirectUri);
+        Assert.Equal("/dashboard", challengeResult.Properties.Items["returnUrl"]);
     }
 
     [Fact]
@@ -70,7 +71,8 @@ public class AuthControllerTests
 
         // Assert
         var challengeResult = Assert.IsType<ChallengeResult>(result);
-        Assert.Equal("/", challengeResult.Properties.RedirectUri);
+        Assert.Equal("/api/auth/callback", challengeResult.Properties.RedirectUri);
+        Assert.Equal("/", challengeResult.Properties.Items["returnUrl"]);
     }
 
     [Fact]
@@ -197,7 +199,9 @@ public class AuthControllerTests
         _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(It.IsAny<string>(), It.IsAny<SessionData>()), Times.Once);
         
         var redirectResult = Assert.IsType<RedirectResult>(result);
-        Assert.Equal(returnUrl, redirectResult.Url);
+        // Should redirect to frontend callback page with returnUrl as query parameter
+        var expectedUrl = $"http://localhost:3002/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}";
+        Assert.Equal(expectedUrl, redirectResult.Url);
     }
 
     [Fact]

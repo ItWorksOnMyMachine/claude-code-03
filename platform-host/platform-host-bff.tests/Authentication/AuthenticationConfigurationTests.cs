@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.IdentityModel.Protocols;
+using System.Collections.Generic;
 using System.Net;
 using Xunit;
 
@@ -22,6 +24,14 @@ public class AuthenticationConfigurationTests : IClassFixture<WebApplicationFact
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
+            // Override Redis configuration to use in-memory cache for tests
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:Redis"] = null // Null to trigger in-memory fallback
+                });
+            });
             builder.ConfigureTestServices(services =>
             {
                 // Configure static OIDC configuration to avoid network calls
