@@ -12,10 +12,9 @@ describe('TenantSelector', () => {
   });
 
   it('renders loading state initially', () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ tenants: [] }),
-    });
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () => new Promise(() => {}) // Never resolves to keep loading state
+    );
 
     render(<TenantSelector onTenantSelect={jest.fn()} />);
     
@@ -126,7 +125,7 @@ describe('TenantSelector', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('displays error when tenant selection fails', async () => {

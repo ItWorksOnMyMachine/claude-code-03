@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Box, 
   Typography, 
-  Grid, 
+  Grid,
   Card, 
   CardContent,
   Button,
@@ -68,7 +68,7 @@ const Index = () => {
 
       <Grid container spacing={3}>
         {features.map((feature, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
+          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
             <Card 
               sx={{ 
                 height: '100%',
