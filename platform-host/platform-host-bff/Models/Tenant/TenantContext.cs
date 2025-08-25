@@ -10,6 +10,7 @@ public class TenantContext
     public bool IsPlatformTenant { get; set; }
     public List<string> UserRoles { get; set; } = new();
     public DateTime SelectedAt { get; set; }
+    public bool IsImpersonating { get; set; }
     
     /// <summary>
     /// Check if user has admin role in current tenant
