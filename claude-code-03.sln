@@ -9,9 +9,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService", "auth-service
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService.Tests", "auth-service\AuthService.Tests\AuthService.Tests.csproj", "{44B0865F-DCFD-45DD-92EC-7E05B1FECE9E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff", "PlatformBff\PlatformBff.csproj", "{67A274BA-83D1-4459-BC78-3F3FF7CA8106}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff", "platform-host\platform-host-bff\PlatformBff.csproj", "{67A274BA-83D1-4459-BC78-3F3FF7CA8106}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff.Tests", "PlatformBff.Tests\PlatformBff.Tests.csproj", "{D4EB25A6-0C55-4046-AA9E-B6393C0EDD26}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff.Tests", "platform-host\platform-host-bff.tests\PlatformBff.Tests.csproj", "{D4EB25A6-0C55-4046-AA9E-B6393C0EDD26}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

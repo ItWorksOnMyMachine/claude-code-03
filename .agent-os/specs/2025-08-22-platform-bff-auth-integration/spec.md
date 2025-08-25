@@ -5,7 +5,7 @@
 
 ## Overview
 
-Integrate the Platform BFF with the existing authentication service using OpenID Connect, enabling secure user authentication while maintaining separation between identity (auth-service) and tenant context (platform-bff). This integration will establish the foundation for all authenticated operations in the platform.
+Integrate the Platform BFF with the existing authentication service using OpenID Connect, enabling secure user authentication while maintaining separation between identity (auth-service) and tenant context (platform-host-bff). This integration will establish the foundation for all authenticated operations in the platform.
 
 ## User Stories
 
@@ -29,7 +29,7 @@ The user clicks logout, the platform BFF clears the local session, revokes token
 
 ## Spec Scope
 
-1. **OIDC Client Configuration** - Configure platform-bff as an OIDC client to the auth-service
+1. **OIDC Client Configuration** - Configure platform-host-bff as an OIDC client to the auth-service
 2. **Authentication Middleware** - Implement cookie authentication with OIDC challenge scheme
 3. **Token Management** - Server-side token storage and automatic refresh handling
 4. **Session Management** - Redis-based session storage for tokens and user context
@@ -44,6 +44,6 @@ The user clicks logout, the platform BFF clears the local session, revokes token
 
 ## Expected Deliverable
 
-1. Working OIDC integration between platform-bff and auth-service with secure cookie-based sessions
+1. Working OIDC integration between platform-host-bff and auth-service with secure cookie-based sessions
 2. Automatic token refresh without user interaction
 3. Protected API endpoints that validate authentication before processing requests

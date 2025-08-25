@@ -35,7 +35,7 @@ This is a microservices platform implementing Module Federation architecture wit
 
 ## Technology Stack
 
-### Frontend (platform-host)
+### Frontend (platform-host/platform-host-frontend)
 
 -   **Framework**: React 18 with TypeScript
 -   **Build Tool**: Modern.js with Webpack
@@ -44,7 +44,7 @@ This is a microservices platform implementing Module Federation architecture wit
 -   **State Management**: React Query (TanStack Query)
 -   **Authentication**: Cookie-based with JWT support
 
-### Backend (platform-bff)
+### Backend (platform-host/platform-host-bff)
 
 -   **Framework**: .NET 9 with FastEndpoints
 -   **Authentication**: Duende IdentityServer with JWT Bearer
@@ -53,10 +53,10 @@ This is a microservices platform implementing Module Federation architecture wit
 
 ## Common Development Commands
 
-### Frontend (platform-host)
+### Frontend (platform-host/platform-host-frontend)
 
 ```bash
-cd platform-host
+cd platform-host/platform-host-frontend
 
 # Development server (runs on port 3002)
 npm run dev
@@ -77,10 +77,10 @@ npm run lint
 npm test -- path/to/test.test.tsx
 ```
 
-### Backend (platform-bff)
+### Backend (platform-host/platform-host-bff)
 
 ```bash
-cd platform-bff
+cd platform-host/platform-host-bff
 
 # Run development server (runs on port 5000)
 dotnet run
@@ -99,14 +99,14 @@ dotnet test --filter "FullyQualifiedName~LoginEndpointTests"
 
 ### Module Federation Configuration
 
-The host application dynamically loads remote modules at runtime. Configuration is in `platform-host/modern.config.ts`. Remote modules are loaded through the `remoteLoader` service using webpack's ModuleFederationPlugin.
+The host application dynamically loads remote modules at runtime. Configuration is in `platform-host/platform-host-frontend/modern.config.ts`. Remote modules are loaded through the `remoteLoader` service using webpack's ModuleFederationPlugin.
 
 ### API Structure
 
 The BFF uses FastEndpoints pattern with:
 
--   Endpoints organized by feature in `platform-bff/Endpoints/`
--   Request/Response models in `platform-bff/Models/`
+-   Endpoints organized by feature in `platform-host/platform-host-bff/Endpoints/`
+-   Request/Response models in `platform-host/platform-host-bff/Models/`
 -   Each endpoint is a separate class inheriting from `Endpoint<TRequest, TResponse>`
 
 ### Authentication Flow
@@ -134,13 +134,13 @@ Key libraries are marked as singletons in Module Federation to prevent duplicati
 
 ### Key Services and Contexts
 
-**Frontend Contexts** (`platform-host/src/contexts/`):
+**Frontend Contexts** (`platform-host/platform-host-frontend/src/contexts/`):
 
 -   `AuthContext`: Authentication state and user management
 -   `NavigationContext`: Dynamic navigation based on entitlements
 -   `RemoteContext`: Module federation remote loading management
 
-**Frontend Hooks** (`platform-host/src/hooks/`):
+**Frontend Hooks** (`platform-host/platform-host-frontend/src/hooks/`):
 
 -   `useAuthentication`: Auth operations (login/logout)
 -   `useEntitlements`: User permission checking

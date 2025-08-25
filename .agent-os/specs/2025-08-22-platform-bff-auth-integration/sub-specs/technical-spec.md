@@ -8,7 +8,7 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 ## Technical Requirements
 
 ### OIDC Client Configuration
-- Configure platform-bff as a confidential OIDC client in auth-service
+- Configure platform-host-bff as a confidential OIDC client in auth-service
 - Set up redirect URIs for login callback (http://localhost:5000/signin-oidc)
 - Configure post-logout redirect URI (http://localhost:5000/signout-callback-oidc)
 - Enable authorization code flow with PKCE

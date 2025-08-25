@@ -27,7 +27,7 @@ The following features have been implemented:
 - [x] Prometheus metrics exporter - `S`
 - [x] Serilog structured logging with PostgreSQL sink - `M`
 
-### Module Federation Platform Host (platform-host)
+### Module Federation Platform Host (platform-host/platform-host-frontend)
 - [x] Module Federation host setup with ModernJS - `M`
 - [x] React 18 with TypeScript application foundation - `M`
 - [x] Webpack Module Federation plugin configured for runtime remote loading - `M`
@@ -40,7 +40,7 @@ The following features have been implemented:
 - [x] ModuleRegistry service for module management - `M`
 - [x] Module discovery utilities with health checking - `M`
 - [x] ModuleFederationContext for state management - `M`
-- [x] API proxy configuration to platform-bff (port 5000) - `S`
+- [x] API proxy configuration to platform-host-bff (port 5000) - `S`
 - [x] HMR (Hot Module Replacement) support - `S`
 - [x] Production build optimizations with code splitting - `M`
 - [x] Environment-specific configuration handling - `S`
@@ -63,39 +63,39 @@ The following features have been implemented:
 - GitHub repository initialization
 
 ## Phase 1.5: Tenant Selection & Platform Integration
-**Goal:** Implement post-authentication tenant selection in platform-host/platform-bff
+**Goal:** Implement post-authentication tenant selection in platform-host-frontend/platform-host-bff
 **Success Criteria:** Users authenticate via auth-service (identity only), then select their working tenant in the platform, with platform administrators accessing a special administrative tenant
 
 ### Note: Authentication Service Already Completed
 The auth-service has been fully implemented with all required features. The remaining work focuses on platform integration and tenant selection.
 
-### Track A: Tenant Selection Implementation (platform-bff/platform-host)
-- [ ] Tenant selection backend (platform-bff) - `L`
+### Track A: Tenant Selection Implementation (platform-host-bff/platform-host-frontend)
+- [ ] Tenant selection backend (platform-host-bff) - `L`
   - [ ] GET /api/tenant/available endpoint
   - [ ] POST /api/tenant/select endpoint
   - [ ] POST /api/tenant/switch endpoint
   - [ ] Session-based tenant context storage in Redis
   - [ ] Platform tenant detection for admins
-- [ ] Tenant selection frontend (platform-host) - `M`
+- [ ] Tenant selection frontend (platform-host-frontend) - `M`
   - [ ] Tenant selection page/component
   - [ ] Available tenants display
   - [ ] Platform admin tenant option (conditional)
   - [ ] Tenant switcher in header
   - [ ] Redirect flow for no-tenant state
-- [ ] Session management updates (platform-bff) - `M`
+- [ ] Session management updates (platform-host-bff) - `M`
   - [ ] Store selected tenant in Redis session
   - [ ] Update SessionEndpoint for tenant context
   - [ ] Modify TenantContext to use session
   - [ ] Per-tenant claims caching
   - [ ] Remember last selected tenant
-- [ ] Platform administration setup (platform-bff) - `L`
+- [ ] Platform administration setup (platform-host-bff) - `L`
   - [ ] Create platform tenant in database
   - [ ] Platform admin role assignments
   - [ ] Cross-tenant query capabilities
   - [ ] Admin-specific navigation items
   - [ ] Audit logging for admin actions
 
-### Track B: Platform BFF Integration with Auth Service (platform-bff)
+### Track B: Platform BFF Integration with Auth Service (platform-host-bff)
 - [ ] OIDC client configuration - `M`
   - [ ] Configure BFF as OIDC client to auth-service
   - [ ] Cookie authentication as default scheme
