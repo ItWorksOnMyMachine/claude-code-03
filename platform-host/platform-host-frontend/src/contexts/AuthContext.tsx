@@ -7,19 +7,29 @@ interface User {
   claims?: Record<string, string>;
 }
 
+interface TenantInfo {
+  id: string;
+  name: string;
+  userRoles: string[];
+  isPlatformAdmin: boolean;
+}
+
 interface SessionResponse {
   isAuthenticated: boolean;
   user?: User;
   expiresAt?: string;
+  selectedTenant?: TenantInfo;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: User | null;
+  selectedTenant: TenantInfo | null;
   login: (returnUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  clearTenant: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [selectedTenant, setSelectedTenant] = useState<TenantInfo | null>(null);
 
   const checkSession = useCallback(async () => {
     try {
@@ -45,14 +56,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data: SessionResponse = await response.json();
         setIsAuthenticated(data.isAuthenticated);
         setUser(data.user || null);
+        setSelectedTenant(data.selectedTenant || null);
       } else {
         setIsAuthenticated(false);
         setUser(null);
+        setSelectedTenant(null);
       }
     } catch (error) {
       console.error('Failed to check session:', error);
       setIsAuthenticated(false);
       setUser(null);
+      setSelectedTenant(null);
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.ok) {
         setIsAuthenticated(false);
         setUser(null);
+        setSelectedTenant(null);
         window.location.href = '/';
       } else {
         throw new Error('Logout failed');
@@ -106,6 +121,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   }, []);
+
+  const clearTenant = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tenant/clear`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setSelectedTenant(null);
+        // Optionally refresh session to get updated state
+        await checkSession();
+      } else {
+        throw new Error('Failed to clear tenant selection');
+      }
+    } catch (error) {
+      console.error('Clear tenant error:', error);
+      throw error;
+    }
+  }, [checkSession]);
 
   // Check session on mount and periodically
   useEffect(() => {
@@ -128,15 +166,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const authCallback = urlParams.get('auth_callback');
+    const returnUrl = urlParams.get('returnUrl') || '/';
     
     if (authCallback === 'true') {
       // Clean up URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('auth_callback');
+      newUrl.searchParams.delete('returnUrl');
       window.history.replaceState({}, document.title, newUrl.toString());
       
       // Check session after callback
-      checkSession();
+      checkSession().then(() => {
+        // After successful authentication, check if tenant needs to be selected
+        // This will be handled by the protected route logic
+      });
     }
   }, [checkSession]);
 
@@ -144,9 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated,
     isLoading,
     user,
+    selectedTenant,
     login,
     logout,
     checkSession,
+    clearTenant,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
