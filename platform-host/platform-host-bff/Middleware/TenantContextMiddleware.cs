@@ -72,10 +72,10 @@ public class TenantContextMiddleware
             context.Items["TenantId"] = tenantId.Value;
         }
 
-        // Set user ID if available
+        // Set user ID if available (only in HttpContext.Items)
+        // TenantContext gets user ID from session/authentication directly
         if (!string.IsNullOrEmpty(userId))
         {
-            tenantContext.SetUserId(userId);
             context.Items["UserId"] = userId;
         }
 

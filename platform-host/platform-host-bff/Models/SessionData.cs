@@ -20,6 +20,10 @@ public class SessionData
     public DateTime? TenantSelectedAt { get; set; }
     public bool IsPlatformAdmin { get; set; }
     
+    // Impersonation context
+    public bool IsImpersonating { get; set; }
+    public DateTimeOffset? ImpersonationExpiresAt { get; set; }
+    
     // Deprecated - kept for backward compatibility
     public Guid? CurrentTenantId { get; set; }
     public List<Guid> AvailableTenants { get; set; } = new();

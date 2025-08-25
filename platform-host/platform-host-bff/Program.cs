@@ -36,27 +36,37 @@ builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<ITenantUserRepository, TenantUserRepository>();
 
-// Add Redis for distributed caching
-var redisConnection = builder.Configuration.GetConnectionString("Redis");
-if (!string.IsNullOrEmpty(redisConnection))
+// Add Redis for distributed caching (skip in Testing environment)
+if (builder.Environment.EnvironmentName != "Testing")
 {
-    builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
-        ConnectionMultiplexer.Connect(redisConnection));
-    builder.Services.AddStackExchangeRedisCache(options =>
+    var redisConnection = builder.Configuration.GetConnectionString("Redis");
+    if (!string.IsNullOrEmpty(redisConnection))
     {
-        options.Configuration = redisConnection;
-        options.InstanceName = "PlatformBff";
-    });
-    
-    // Configure Data Protection with Redis for distributed key storage
-    var redis = ConnectionMultiplexer.Connect(redisConnection);
-    builder.Services.AddDataProtection()
-        .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys")
-        .SetApplicationName("PlatformBff");
+        builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+            ConnectionMultiplexer.Connect(redisConnection));
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnection;
+            options.InstanceName = "PlatformBff";
+        });
+        
+        // Configure Data Protection with Redis for distributed key storage
+        var redis = ConnectionMultiplexer.Connect(redisConnection);
+        builder.Services.AddDataProtection()
+            .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys")
+            .SetApplicationName("PlatformBff");
+    }
+    else
+    {
+        // Fallback to in-memory cache if Redis is not configured
+        builder.Services.AddDistributedMemoryCache();
+        builder.Services.AddDataProtection()
+            .SetApplicationName("PlatformBff");
+    }
 }
 else
 {
-    // Fallback to in-memory cache if Redis is not configured
+    // Use in-memory cache for testing
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddDataProtection()
         .SetApplicationName("PlatformBff");
@@ -67,7 +77,7 @@ builder.Services.AddScoped<ISessionService, RedisSessionService>();
 
 // Add Tenant Services
 builder.Services.AddScoped<ITenantService, TenantService>();
-// TODO: Add ITenantAdminService when implemented
+builder.Services.AddScoped<ITenantAdminService, TenantAdminService>();
 
 builder.Services.AddSession(options =>
 {
@@ -164,7 +174,15 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Add Authorization
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("PlatformAdmin", policy =>
+        policy.Requirements.Add(new PlatformBff.Authorization.PlatformAdminRequirement()));
+});
+
+// Add authorization handlers
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, 
+    PlatformBff.Authorization.PlatformAdminAuthorizationHandler>();
 
 // Add CORS for development
 builder.Services.AddCors(options =>
