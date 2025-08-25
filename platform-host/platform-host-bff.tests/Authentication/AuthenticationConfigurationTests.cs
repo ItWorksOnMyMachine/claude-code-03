@@ -10,8 +10,11 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.IdentityModel.Protocols;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using Xunit;
+using Microsoft.EntityFrameworkCore;
+using PlatformBff.Data;
 
 namespace PlatformBff.Tests.Authentication;
 
@@ -29,11 +32,19 @@ public class AuthenticationConfigurationTests : IClassFixture<WebApplicationFact
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:Redis"] = null // Null to trigger in-memory fallback
+                    ["ConnectionStrings:Redis"] = null, // Null to trigger in-memory fallback
+                    ["ConnectionStrings:DefaultConnection"] = "Host=test;Database=test;Username=test;Password=test" // Dummy connection string
                 });
             });
             builder.ConfigureTestServices(services =>
             {
+                // Since we skip database registration in Testing environment,
+                // we need to add the in-memory database here
+                services.AddDbContext<PlatformDbContext>(options =>
+                {
+                    options.UseInMemoryDatabase("InMemoryDbForTesting");
+                });
+                
                 // Configure static OIDC configuration to avoid network calls
                 services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
                 {

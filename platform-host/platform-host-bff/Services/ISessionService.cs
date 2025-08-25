@@ -53,4 +53,9 @@ public interface ISessionService
     /// Retrieves session metadata
     /// </summary>
     Task<SessionData?> GetSessionDataAsync(string sessionId);
+    
+    /// <summary>
+    /// Updates session metadata (e.g., after tenant selection)
+    /// </summary>
+    Task UpdateSessionDataAsync(string sessionId, SessionData sessionData);
 }

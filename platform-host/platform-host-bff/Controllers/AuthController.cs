@@ -252,7 +252,15 @@ public class AuthController : ControllerBase
                 Name = sessionData.Username,
                 Claims = sessionData.Claims ?? new Dictionary<string, string>()
             },
-            ExpiresAt = sessionData.ExpiresAt
+            ExpiresAt = sessionData.ExpiresAt,
+            // Include tenant information if selected
+            SelectedTenant = sessionData.SelectedTenantId.HasValue ? new TenantInfo
+            {
+                Id = sessionData.SelectedTenantId.Value,
+                Name = sessionData.SelectedTenantName ?? "Unknown",
+                UserRoles = sessionData.TenantRoles,
+                IsPlatformAdmin = sessionData.IsPlatformAdmin
+            } : null
         };
         
         return Ok(response);

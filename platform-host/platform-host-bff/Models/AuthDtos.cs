@@ -36,6 +36,18 @@ public class SessionResponse
     public bool IsAuthenticated { get; set; }
     public UserInfo? User { get; set; }
     public DateTime? ExpiresAt { get; set; }
+    public TenantInfo? SelectedTenant { get; set; }
+}
+
+/// <summary>
+/// Tenant information in session response
+/// </summary>
+public class TenantInfo
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public List<string> UserRoles { get; set; } = new();
+    public bool IsPlatformAdmin { get; set; }
 }
 
 /// <summary>

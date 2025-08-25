@@ -26,4 +26,6 @@ public class TestRequestCookieCollection : IRequestCookieCollection
     public bool TryGetValue(string key, out string value) => _cookies.TryGetValue(key, out value);
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    
+    public void Add(string key, string value) => _cookies[key] = value;
 }

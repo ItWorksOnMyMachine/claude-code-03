@@ -381,4 +381,33 @@ public class RedisSessionService : ISessionService
             return null;
         }
     }
+    
+    public async Task UpdateSessionDataAsync(string sessionId, SessionData sessionData)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                throw new ArgumentException("Session ID is required", nameof(sessionId));
+            }
+            
+            if (sessionData == null)
+            {
+                throw new ArgumentNullException(nameof(sessionData));
+            }
+            
+            // Update last accessed time
+            sessionData.LastAccessedAt = DateTime.UtcNow;
+            
+            // Store updated session data
+            await StoreSessionDataAsync(sessionId, sessionData);
+            
+            _logger.LogDebug("Updated session data for session {SessionId}", sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update session data for session {SessionId}", sessionId);
+            throw;
+        }
+    }
 }

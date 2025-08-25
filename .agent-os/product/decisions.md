@@ -648,3 +648,146 @@ This decision supersedes DEC-005 (Test Authentication) and provides the long-ter
 3. Migrate test users to new service
 4. Enable production features progressively
 5. Potentially migrate monolith users to shared auth service
+
+## 2025-08-25: Hybrid Tenant Service Architecture - Start in BFF, Extract Later
+
+**ID:** DEC-009
+**Status:** Accepted
+**Category:** Technical
+**Stakeholders:** Product Owner, Tech Lead, Development Team
+
+### Decision
+
+Implement tenant management initially within the Platform BFF using clean, extractable interfaces and domain-driven design, with a planned migration path to a dedicated tenant service when additional microservices require tenant context.
+
+### Context
+
+The platform needs tenant management capabilities immediately to enable the basic user flow (authenticate → select tenant → access features). While a separate tenant service would be the ideal long-term architecture, the immediate priority is delivering a functional demo. The team needs to balance architectural purity with speed to market while avoiding technical debt that would make future extraction difficult.
+
+### Architecture Approach
+
+**Phase 1: BFF Implementation (Current)**
+```
+┌──────────┐     ┌─────────────┐     ┌──────────┐
+│  Auth    │────▶│ Platform    │────▶│ Platform │
+│ Service  │     │    BFF      │     │    DB    │
+└──────────┘     │ (+ Tenant   │     └──────────┘
+                 │   Logic)     │
+                 └─────────────┘
+```
+
+**Phase 2: Extracted Service (Future)**
+```
+┌──────────┐     ┌─────────────┐     ┌──────────┐
+│  Auth    │────▶│   Tenant    │◀────│ Platform │
+│ Service  │     │   Service   │     │   BFF    │
+└──────────┘     └─────────────┘     └──────────┘
+                        ▲
+                        │
+                 ┌──────────────┐
+                 │ Future        │
+                 │ Microservices │
+                 └──────────────┘
+```
+
+### Implementation Details
+
+**Clean Interface Design:**
+```csharp
+// Domain interfaces that can become service contracts
+public interface ITenantService
+{
+    Task<IEnumerable<TenantInfo>> GetAvailableTenantsAsync(string userId);
+    Task<TenantContext> SelectTenantAsync(string userId, Guid tenantId);
+    Task<bool> ValidateAccessAsync(string userId, Guid tenantId);
+}
+
+public interface ITenantAdminService
+{
+    Task<IEnumerable<Tenant>> GetAllTenantsAsync();
+    Task<Tenant> CreateTenantAsync(CreateTenantDto dto);
+    Task AssignUserToTenantAsync(Guid tenantId, string userId, string role);
+}
+```
+
+**Extraction Triggers:**
+- Addition of second microservice needing tenant context
+- Tenant operations becoming performance bottleneck
+- Need for sophisticated tenant caching strategies
+- Requirement for tenant-specific event streaming
+
+### Alternatives Considered
+
+1. **Immediate Separate Service**
+   - Pros: Clean architecture from start, no refactoring needed
+   - Cons: 2-3 weeks additional development, delays demo, premature optimization
+
+2. **Permanent BFF Integration**
+   - Pros: Simplest architecture, no service communication overhead
+   - Cons: Creates bottleneck, violates single responsibility, blocks future microservices
+
+3. **Shared Library Approach**
+   - Pros: Code reuse, consistent implementation
+   - Cons: Database coupling, version management issues, no central authority
+
+### Rationale
+
+The hybrid approach provides optimal balance between speed and architecture:
+- **Immediate functionality** for demo and MVP
+- **Clean boundaries** enable extraction without major refactoring
+- **Reduced complexity** during initial development
+- **Learning opportunity** to understand tenant patterns before committing to service boundaries
+- **Cost effective** - avoid premature service distribution
+
+### Implementation Guidelines
+
+1. **Domain Separation:**
+   - Place tenant logic in separate namespace/project
+   - Use repository pattern for data access
+   - Define clear DTOs that can become API contracts
+
+2. **Session Integration:**
+   - Store selected tenant in Redis session
+   - TenantContext middleware reads from session
+   - Prepare for header-based propagation in future
+
+3. **Admin Features:**
+   - Separate admin interfaces from user interfaces
+   - Use policy-based authorization
+   - Audit all cross-tenant operations
+
+4. **Future Extraction Path:**
+   - Replace implementations with HTTP clients
+   - Convert DTOs to API contracts
+   - Move database tables to tenant service
+   - Add caching layer at service boundary
+
+### Consequences
+
+**Positive:**
+- Ship functional platform 2-3 weeks faster
+- Validate tenant patterns with real usage
+- Maintain clean architecture boundaries
+- Reduce initial operational complexity
+- Enable iterative refinement of tenant model
+
+**Negative:**
+- Temporary coupling of BFF and tenant logic
+- Future extraction effort required (estimated 1 week)
+- Initial deployment simpler but less scalable
+- Potential for scope creep if boundaries not maintained
+
+### Success Criteria
+
+The implementation is successful if:
+1. Extraction to separate service requires <1 week of effort
+2. No breaking changes to frontend during extraction
+3. Tenant logic remains isolated from BFF-specific concerns
+4. All interfaces remain stable during extraction
+
+### Timeline
+
+- **Week 1-2:** Implement tenant selection in BFF
+- **Week 3-4:** Add platform admin features
+- **Month 2-3:** Evaluate extraction based on platform growth
+- **Month 4+:** Extract if triggered by additional microservices

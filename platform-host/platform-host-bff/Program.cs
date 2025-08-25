@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using PlatformBff.Data;
 using PlatformBff.Services;
+using PlatformBff.Services.Tenant;
 using PlatformBff.Repositories;
 using StackExchange.Redis;
 
@@ -15,12 +16,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 
 // Add DbContext with PostgreSQL and tenant context
-builder.Services.AddDbContext<PlatformDbContext>((serviceProvider, options) =>
+// Skip database registration in Testing environment (tests will configure their own)
+if (builder.Environment.EnvironmentName != "Testing")
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+    builder.Services.AddDbContext<PlatformDbContext>((serviceProvider, options) =>
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    });
+}
 
 // Add Tenant Context
 builder.Services.AddScoped<ITenantContext, TenantContext>();
@@ -58,6 +64,10 @@ else
 
 // Add Session Service for token management
 builder.Services.AddScoped<ISessionService, RedisSessionService>();
+
+// Add Tenant Services
+builder.Services.AddScoped<ITenantService, TenantService>();
+// TODO: Add ITenantAdminService when implemented
 
 builder.Services.AddSession(options =>
 {
@@ -176,12 +186,35 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseCors("DevelopmentPolicy");
     
-    // Seed database in development
+    // Seed database in development (skip in Testing environment)
+    if (app.Environment.EnvironmentName != "Testing")
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            DbContextExtensions.HostingEnvironment = app.Environment;
+            await DatabaseSeeder.SeedAsync(context);
+            
+            // Seed platform tenant
+            await PlatformBff.Data.SeedData.PlatformTenantSeeder.SeedAsync(context);
+            
+            // In development, make the test admin user a platform admin
+            // This is the user from auth service with sub "e4ee8e51-0279-4c19-8f36-8f7b616e9f09"
+            await PlatformBff.Data.SeedData.PlatformTenantSeeder.AssignPlatformAdminAsync(
+                context, 
+                "e4ee8e51-0279-4c19-8f36-8f7b616e9f09", // admin user from auth service
+                "admin@platform.local"
+            );
+        }
+    }
+}
+else if (app.Environment.EnvironmentName != "Testing")
+{
+    // In production, still need to ensure platform tenant exists (skip in Testing)
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        DbContextExtensions.HostingEnvironment = app.Environment;
-        await DatabaseSeeder.SeedAsync(context);
+        await PlatformBff.Data.SeedData.PlatformTenantSeeder.SeedAsync(context);
     }
 }
 
