@@ -1,14 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.FileProviders;
 using PlatformBff.Models.Dev;
 using Xunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using PlatformBff.Data;
 using StackExchange.Redis;
 using Moq;
 
@@ -17,6 +20,7 @@ namespace PlatformBff.Tests.Controllers;
 public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
+    private static int _testCounter = 0;
 
     public DevControllerTests(WebApplicationFactory<Program> factory)
     {
@@ -25,23 +29,34 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
     private HttpClient CreateDevClient()
     {
+        var testId = System.Threading.Interlocked.Increment(ref _testCounter);
+        var dbName = $"DevControllerTest_{testId}";
+        
         return _factory.WithWebHostBuilder(builder =>
         {
+            // Use Testing environment to avoid Redis connection
+            builder.UseEnvironment("Testing");
             builder.ConfigureAppConfiguration((context, config) =>
             {
-                context.HostingEnvironment.EnvironmentName = "Development";
+                // Override to simulate Development environment for DevelopmentOnlyAttribute
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ASPNETCORE_ENVIRONMENT"] = "Development"
+                });
             });
             builder.ConfigureTestServices(services =>
             {
-                // Remove the existing Redis connection
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IConnectionMultiplexer));
-                if (descriptor != null)
+                // Replace DbContext with in-memory database
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
+                if (descriptor != null) services.Remove(descriptor);
+                
+                services.AddDbContext<PlatformDbContext>(options =>
                 {
-                    services.Remove(descriptor);
-                }
+                    options.UseInMemoryDatabase(dbName);
+                    options.EnableSensitiveDataLogging();
+                });
 
-                // Add a mock Redis connection
+                // Add mock Redis connection for DevController
                 var mockRedis = new Mock<IConnectionMultiplexer>();
                 var mockDatabase = new Mock<IDatabase>();
                 mockRedis.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
@@ -50,29 +65,40 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
                     .ReturnsAsync(TimeSpan.FromMilliseconds(1));
                 
                 services.AddSingleton(mockRedis.Object);
+                
+                // Override IHostEnvironment to report Development
+                services.AddSingleton<IHostEnvironment>(new TestHostEnvironment 
+                { 
+                    EnvironmentName = "Development",
+                    ApplicationName = "PlatformBff",
+                    ContentRootPath = Directory.GetCurrentDirectory()
+                });
             });
         }).CreateClient();
     }
 
     private HttpClient CreateProdClient()
     {
+        var testId = System.Threading.Interlocked.Increment(ref _testCounter);
+        var dbName = $"DevControllerTest_{testId}";
+        
         return _factory.WithWebHostBuilder(builder =>
         {
-            builder.ConfigureAppConfiguration((context, config) =>
-            {
-                context.HostingEnvironment.EnvironmentName = "Production";
-            });
+            // Use Testing environment to avoid Redis connection
+            builder.UseEnvironment("Testing");
             builder.ConfigureTestServices(services =>
             {
-                // Remove the existing Redis connection
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IConnectionMultiplexer));
-                if (descriptor != null)
+                // Replace DbContext with in-memory database
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
+                if (descriptor != null) services.Remove(descriptor);
+                
+                services.AddDbContext<PlatformDbContext>(options =>
                 {
-                    services.Remove(descriptor);
-                }
+                    options.UseInMemoryDatabase(dbName);
+                    options.EnableSensitiveDataLogging();
+                });
 
-                // Add a mock Redis connection
+                // Add mock Redis connection for DevController
                 var mockRedis = new Mock<IConnectionMultiplexer>();
                 var mockDatabase = new Mock<IDatabase>();
                 mockRedis.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
@@ -81,6 +107,14 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
                     .ReturnsAsync(TimeSpan.FromMilliseconds(1));
                 
                 services.AddSingleton(mockRedis.Object);
+                
+                // Override IHostEnvironment to report Production
+                services.AddSingleton<IHostEnvironment>(new TestHostEnvironment 
+                { 
+                    EnvironmentName = "Production",
+                    ApplicationName = "PlatformBff",
+                    ContentRootPath = Directory.GetCurrentDirectory()
+                });
             });
         }).CreateClient();
     }
@@ -272,5 +306,14 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
             response.StatusCode.Should().Be(HttpStatusCode.Forbidden,
                 $"Endpoint {endpoint} should be blocked in production");
         }
+    }
+
+    // Test helper class to override IHostEnvironment
+    private class TestHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = "Testing";
+        public string ApplicationName { get; set; } = "PlatformBff";
+        public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();
+        public IFileProvider ContentRootFileProvider { get; set; } = null!;
     }
 }
