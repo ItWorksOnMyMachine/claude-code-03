@@ -44,16 +44,6 @@ public interface ITenantAdminService
     Task<IEnumerable<TenantUserInfo>> GetTenantUsersAsync(Guid tenantId);
     
     /// <summary>
-    /// Impersonate a tenant (switch context as admin)
-    /// </summary>
-    Task<Models.Tenant.TenantContext> ImpersonateTenantAsync(string adminUserId, Guid tenantId);
-    
-    /// <summary>
-    /// Overload for controller compatibility
-    /// </summary>
-    Task<ImpersonationContext> ImpersonateTenantAsync(Guid tenantId, string adminUserId);
-    
-    /// <summary>
     /// Overload for controller compatibility
     /// </summary>
     Task<TenantInfo> CreateTenantAsync(CreateTenantRequest request);

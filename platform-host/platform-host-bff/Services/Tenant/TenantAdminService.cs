@@ -285,53 +285,6 @@ public class TenantAdminService : ITenantAdminService
         }
     }
 
-    public async Task<ImpersonationContext> ImpersonateTenantAsync(Guid tenantId, string adminUserId)
-    {
-        var context = await ImpersonateTenantAsync(adminUserId, tenantId);
-        return new ImpersonationContext
-        {
-            TenantId = context.TenantId,
-            TenantName = context.TenantName,
-            ImpersonatingUserId = adminUserId,
-            StartedAt = DateTimeOffset.UtcNow,
-            ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
-        };
-    }
-
-    public async Task<Models.Tenant.TenantContext> ImpersonateTenantAsync(string adminUserId, Guid tenantId)
-    {
-        try
-        {
-            // Verify tenant exists
-            var tenant = await _context.Tenants
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(t => t.Id == tenantId && !t.IsDeleted);
-
-            if (tenant == null)
-            {
-                throw new ArgumentException($"Tenant {tenantId} not found");
-            }
-
-            // Create tenant context for impersonation
-            var context = new Models.Tenant.TenantContext
-            {
-                TenantId = tenantId,
-                TenantName = tenant.DisplayName,
-                IsPlatformTenant = tenant.IsPlatformTenant
-            };
-
-            _logger.LogWarning("Platform admin {AdminUserId} started impersonating tenant {TenantId} ({TenantName})",
-                adminUserId, tenantId, tenant.DisplayName);
-
-            return context;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error impersonating tenant {TenantId}", tenantId);
-            throw;
-        }
-    }
-
     public async Task<bool> UpdateTenantAsync(Guid tenantId, UpdateTenantRequest request)
     {
         try

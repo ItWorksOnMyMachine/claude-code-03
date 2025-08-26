@@ -145,114 +145,6 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         tenants!.Should().Contain(t => t.Name == "Customer 2" && t.DisplayName == "Customer 2 Company");
     }
 
-    [Fact]
-    public async Task PlatformAdmin_CanImpersonateTenant_AndSwitchBack()
-    {
-        // Arrange - Create factory with dynamic session handling
-        var testId = System.Threading.Interlocked.Increment(ref _testCounter);
-        var dbName = $"ImpersonationTest_{testId}";
-        var sessionData = new TestSessionService(null, true); // Platform admin, no initial tenant
-        
-        var factory = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Testing");
-            builder.ConfigureTestServices(services =>
-            {
-                // Replace DbContext with in-memory database
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
-                if (descriptor != null) services.Remove(descriptor);
-                
-                services.AddDbContext<PlatformDbContext>(options =>
-                {
-                    options.UseInMemoryDatabase(dbName);
-                    options.EnableSensitiveDataLogging();
-                });
-
-                // Use the same session service instance for all requests
-                services.AddSingleton<ISessionService>(sessionData);
-                
-                // Mock tenant service for platform admin check
-                var tenantServiceMock = new Mock<ITenantService>();
-                tenantServiceMock.Setup(x => x.IsPlatformAdminAsync(It.IsAny<string>()))
-                    .ReturnsAsync(true);
-                services.AddScoped<ITenantService>(_ => tenantServiceMock.Object);
-                
-                // Configure tenant context
-                services.AddScoped<ITenantContext, TestTenantContext>();
-                
-                // Add authentication
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = "Test";
-                    options.DefaultChallengeScheme = "Test";
-                })
-                .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
-                
-                // Configure static OIDC configuration
-                services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
-                {
-                    var config = new OpenIdConnectConfiguration
-                    {
-                        Issuer = "https://test-idp.local",
-                        AuthorizationEndpoint = "https://test-idp.local/connect/authorize",
-                        TokenEndpoint = "https://test-idp.local/connect/token",
-                        UserInfoEndpoint = "https://test-idp.local/connect/userinfo",
-                        JwksUri = "https://test-idp.local/.well-known/jwks.json",
-                        EndSessionEndpoint = "https://test-idp.local/connect/endsession"
-                    };
-                    options.Configuration = config;
-                    options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(config);
-                    options.Events ??= new OpenIdConnectEvents();
-                });
-            });
-        });
-        
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        
-        // Create test tenant
-        var customerTenant = new Tenant 
-        { 
-            Id = Guid.NewGuid(), 
-            Name = "Impersonation Test",
-            Slug = "impersonation-test",
-            DisplayName = "Impersonation Test Tenant",
-            IsActive = true
-        };
-        dbContext.Tenants.Add(customerTenant);
-        await dbContext.SaveChangesAsync();
-        
-        var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("Cookie", "platform.session=test-session");
-
-        // Act 1: Start impersonation
-        var impersonateResponse = await client.PostAsync($"/api/admin/tenant/{customerTenant.Id}/impersonate", null);
-        impersonateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // Act 2: Check current tenant
-        var currentResponse = await client.GetAsync("/api/tenant/current");
-        currentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var currentTenant = await currentResponse.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantContext>();
-        
-        // Assert impersonation is active
-        currentTenant.Should().NotBeNull();
-        currentTenant!.IsImpersonating.Should().BeTrue();
-        currentTenant.TenantId.Should().Be(customerTenant.Id);
-
-        // Act 3: Stop impersonation
-        var stopResponse = await client.PostAsync("/api/admin/tenant/stop-impersonation", null);
-        stopResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // Act 4: Check current tenant again
-        var finalResponse = await client.GetAsync("/api/tenant/current");
-        finalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var finalTenant = await finalResponse.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantContext>();
-        
-        // Assert back to platform admin state
-        finalTenant.Should().NotBeNull();
-        finalTenant!.IsImpersonating.Should().BeFalse();
-        finalTenant.IsPlatformAdmin.Should().BeTrue();
-    }
 
     [Fact]
     public async Task PlatformAdmin_CanCreateAndManageTenantsAcrossSystem()
@@ -308,15 +200,13 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         // Act & Assert - Try various admin endpoints
         var endpoints = new[]
         {
-            "/api/admin/tenants",
-            $"/api/admin/tenant/{Guid.NewGuid()}/impersonate",
-            "/api/admin/tenant/stop-impersonation",
-            $"/api/admin/tenant/{Guid.NewGuid()}/deactivate"
+            ("/api/admin/tenants", "GET"),
+            ($"/api/admin/tenant/{Guid.NewGuid()}/deactivate", "POST")
         };
 
-        foreach (var endpoint in endpoints)
+        foreach (var (endpoint, method) in endpoints)
         {
-            var response = endpoint.Contains("stop-impersonation") || endpoint.Contains("deactivate") || endpoint.Contains("impersonate")
+            var response = method == "POST"
                 ? await client.PostAsync(endpoint, null)
                 : await client.GetAsync(endpoint);
             response.StatusCode.Should().BeOneOf(HttpStatusCode.Forbidden, HttpStatusCode.Unauthorized, HttpStatusCode.NotFound);
@@ -400,8 +290,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
                 Email = "test@platform.com",
                 IsPlatformAdmin = _isPlatformAdmin,
                 SelectedTenantId = _selectedTenantId ?? (_isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001") : null),
-                SelectedTenantName = _isPlatformAdmin ? "Platform" : "Test Tenant",
-                IsImpersonating = false
+                SelectedTenantName = _isPlatformAdmin ? "Platform" : "Test Tenant"
             };
         }
 
@@ -436,30 +325,6 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         public Task<TokenData?> GetTokensAsync(string sessionId) => Task.FromResult<TokenData?>(null);
         public Task<TokenData?> RefreshTokensAsync(string sessionId, string refreshToken) => Task.FromResult<TokenData?>(null);
         public Task RevokeTokensAsync(string sessionId) => Task.CompletedTask;
-        
-        // Helper methods for testing impersonation
-        public void SetImpersonation(Guid tenantId, string tenantName)
-        {
-            if (_sessions.TryGetValue("test-session", out var session))
-            {
-                session.SelectedTenantId = tenantId;
-                session.SelectedTenantName = tenantName;
-                session.IsImpersonating = true;
-                session.ImpersonationExpiresAt = DateTimeOffset.UtcNow.AddHours(1);
-            }
-        }
-        
-        public void ClearImpersonation()
-        {
-            if (_sessions.TryGetValue("test-session", out var session))
-            {
-                // Restore platform admin state
-                session.SelectedTenantId = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001") : null;
-                session.SelectedTenantName = _isPlatformAdmin ? "Platform" : null;
-                session.IsImpersonating = false;
-                session.ImpersonationExpiresAt = null;
-            }
-        }
     }
 
     private class TestTenantContext : ITenantContext

@@ -169,7 +169,8 @@ public class TenantServiceTests : IDisposable
         var tenants = result.ToList();
         Assert.Single(tenants);
         Assert.Equal(_testTenantId, tenants[0].Id);
-        Assert.Equal("Test Tenant", tenants[0].Name);
+        Assert.Equal("test-tenant", tenants[0].Name);
+        Assert.Equal("Test Tenant", tenants[0].DisplayName);
         Assert.False(tenants[0].IsPlatformTenant);
     }
     
@@ -226,7 +227,8 @@ public class TenantServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal(_testTenantId, result.Id);
-        Assert.Equal("Test Tenant", result.Name);
+        Assert.Equal("test-tenant", result.Name);
+        Assert.Equal("Test Tenant", result.DisplayName);
         Assert.Equal("User", result.UserRole);
     }
     

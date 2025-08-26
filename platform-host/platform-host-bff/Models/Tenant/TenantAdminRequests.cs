@@ -59,15 +59,3 @@ public class TenantStatistics
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset LastActivity { get; set; }
 }
-
-/// <summary>
-/// Impersonation context for admin troubleshooting
-/// </summary>
-public class ImpersonationContext
-{
-    public Guid TenantId { get; set; }
-    public string TenantName { get; set; } = string.Empty;
-    public string ImpersonatingUserId { get; set; } = string.Empty;
-    public DateTimeOffset StartedAt { get; set; }
-    public DateTimeOffset ExpiresAt { get; set; }
-}

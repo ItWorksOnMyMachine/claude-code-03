@@ -274,56 +274,6 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    [Fact]
-    public async Task ImpersonateTenant_WithValidId_StartsImpersonation()
-    {
-        // Arrange
-        var factory = CreateFactory(isPlatformAdmin: true);
-        var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("Cookie", "platform.session=test-session");
-
-        // Create a tenant first
-        var createDto = new CreateTenantDto
-        {
-            Name = "Tenant To Impersonate",
-            Description = "Test Description"
-        };
-        var createResponse = await client.PostAsJsonAsync("/api/admin/tenants", createDto);
-        var tenant = await createResponse.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantInfo>(_jsonOptions);
-
-        // Act
-        var response = await client.PostAsync($"/api/admin/tenant/{tenant!.Id}/impersonate", null);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("Now impersonating tenant");
-    }
-
-    [Fact]
-    public async Task StopImpersonation_WhenImpersonating_StopsSuccessfully()
-    {
-        // Arrange
-        var factory = CreateFactory(isPlatformAdmin: true);
-        var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("Cookie", "platform.session=test-session");
-
-        // Start impersonation first
-        var createDto = new CreateTenantDto
-        {
-            Name = "Tenant To Stop Impersonating",
-            Description = "Test Description"
-        };
-        var createResponse = await client.PostAsJsonAsync("/api/admin/tenants", createDto);
-        var tenant = await createResponse.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantInfo>(_jsonOptions);
-        await client.PostAsync($"/api/admin/tenant/{tenant!.Id}/impersonate", null);
-
-        // Act
-        var response = await client.PostAsync("/api/admin/tenant/stop-impersonation", null);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
 
     // Test authentication handler for bypassing auth in tests
     public class TestAuthenticationHandler : AuthenticationHandler<TestAuthenticationSchemeOptions>
@@ -372,8 +322,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                 Email = "admin@platform.com",
                 IsPlatformAdmin = _isPlatformAdmin,
                 SelectedTenantId = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001") : null,
-                SelectedTenantName = _isPlatformAdmin ? "Platform" : null,
-                IsImpersonating = false
+                SelectedTenantName = _isPlatformAdmin ? "Platform" : null
             };
             
             _tokens["test-session"] = new TokenData
