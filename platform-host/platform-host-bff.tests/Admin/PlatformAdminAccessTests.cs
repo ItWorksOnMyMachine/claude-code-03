@@ -141,8 +141,8 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         var tenants = await response.Content.ReadFromJsonAsync<List<PlatformBff.Models.Tenant.TenantInfo>>();
         tenants.Should().NotBeNull();
         tenants!.Should().HaveCountGreaterOrEqualTo(2);
-        tenants!.Should().Contain(t => t.Name == "Customer 1");
-        tenants!.Should().Contain(t => t.Name == "Customer 2");
+        tenants!.Should().Contain(t => t.Name == "Customer 1" && t.DisplayName == "Customer 1 Company");
+        tenants!.Should().Contain(t => t.Name == "Customer 2" && t.DisplayName == "Customer 2 Company");
     }
 
     [Fact]
@@ -224,8 +224,8 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         
         var allTenants = await pageResponse.Content.ReadFromJsonAsync<List<PlatformBff.Models.Tenant.TenantInfo>>();
         allTenants.Should().NotBeNull();
-        allTenants!.Should().Contain(t => t.Name == "Tenant A");
-        allTenants!.Should().Contain(t => t.Name == "Tenant B");
+        allTenants!.Should().Contain(t => t.Name == "tenant-a" && t.DisplayName == "Tenant A");
+        allTenants!.Should().Contain(t => t.Name == "tenant-b" && t.DisplayName == "Tenant B");
 
         // Act 3: Deactivate one tenant
         var deactivateResponse = await client.PostAsync($"/api/admin/tenant/{tenant1!.Id}/deactivate", null);

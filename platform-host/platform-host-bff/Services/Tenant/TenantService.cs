@@ -45,7 +45,8 @@ public class TenantService : ITenantService
             var tenants = tenantUsers.Select(tu => new TenantInfo
             {
                 Id = tu.TenantId,
-                Name = tu.Tenant.DisplayName,
+                Name = tu.Tenant.Name,
+                DisplayName = tu.Tenant.DisplayName,
                 Description = tu.Tenant.Settings,
                 IsActive = tu.Tenant.IsActive,
                 IsPlatformTenant = tu.Tenant.IsPlatformTenant,
@@ -87,7 +88,8 @@ public class TenantService : ITenantService
             return new TenantInfo
             {
                 Id = tenantUser.TenantId,
-                Name = tenantUser.Tenant.DisplayName,
+                Name = tenantUser.Tenant.Name,
+                DisplayName = tenantUser.Tenant.DisplayName,
                 Description = tenantUser.Tenant.Settings,
                 IsActive = tenantUser.Tenant.IsActive,
                 IsPlatformTenant = tenantUser.Tenant.IsPlatformTenant,

@@ -51,7 +51,8 @@ public class TenantAdminService : ITenantAdminService
                 .Select(t => new TenantInfo
                 {
                     Id = t.Id,
-                    Name = t.DisplayName,
+                    Name = t.Name,
+                    DisplayName = t.DisplayName,
                     Description = t.Settings,
                     IsActive = t.IsActive,
                     IsPlatformTenant = t.IsPlatformTenant,
@@ -156,7 +157,8 @@ public class TenantAdminService : ITenantAdminService
             return new TenantInfo
             {
                 Id = tenant.Id,
-                Name = tenant.DisplayName,
+                Name = tenant.Name,
+                DisplayName = tenant.DisplayName,
                 Description = tenant.Settings,
                 IsActive = tenant.IsActive,
                 IsPlatformTenant = tenant.IsPlatformTenant,
@@ -391,7 +393,8 @@ public class TenantAdminService : ITenantAdminService
             return new TenantInfo
             {
                 Id = tenant.Id,
-                Name = tenant.DisplayName,
+                Name = tenant.Name,
+                DisplayName = tenant.DisplayName,
                 Description = tenant.Settings,
                 IsActive = tenant.IsActive,
                 IsPlatformTenant = tenant.IsPlatformTenant,
