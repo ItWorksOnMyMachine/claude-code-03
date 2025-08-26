@@ -1,0 +1,16 @@
+{
+  "name": "platform-host-dev-setup",
+  "version": "1.0.0",
+  "description": "Development environment setup for Platform Host",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:reset": "docker-compose down -v && docker-compose up -d"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "js-yaml": "^4.1.0"
+  }
+}

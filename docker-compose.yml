@@ -1,65 +1,165 @@
 version: '3.8'
 
 services:
-  postgres-auth:
-    image: postgres:16-alpine
-    container_name: platform-postgres-auth
+  # PostgreSQL for Platform Database
+  postgres-platform:
+    image: postgres:17-alpine
+    container_name: platform-postgres
     environment:
-      POSTGRES_DB: authdb
-      POSTGRES_USER: authuser
-      POSTGRES_PASSWORD: authpass
-    volumes:
-      - postgres-auth-data:/var/lib/postgresql/data
+      POSTGRES_DB: ${POSTGRES_PLATFORM_DB:-platformdb}
+      POSTGRES_USER: ${POSTGRES_PLATFORM_USER:-platformuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PLATFORM_PASSWORD:-DevPassword123!}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
-    networks:
-      - platform-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U authuser -d authdb"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-platform:
-    image: postgres:16-alpine
-    container_name: platform-postgres-platform
-    environment:
-      POSTGRES_DB: platformdb
-      POSTGRES_USER: platformuser
-      POSTGRES_PASSWORD: platformpass
     volumes:
       - postgres-platform-data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
+      - ./docker/sql/platform:/docker-entrypoint-initdb.d:ro
+      - ./docker/scripts/wait-for-it.sh:/usr/local/bin/wait-for-it.sh:ro
     networks:
       - platform-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U platformuser -d platformdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_PLATFORM_USER:-platformuser} -d ${POSTGRES_PLATFORM_DB:-platformdb}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
+  # PostgreSQL for Auth Database
+  postgres-auth:
+    image: postgres:17-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_AUTH_DB:-authdb}
+      POSTGRES_USER: ${POSTGRES_AUTH_USER:-authuser}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD:-DevPassword123!}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+      - ./docker/sql/auth:/docker-entrypoint-initdb.d:ro
+      - ./docker/scripts/wait-for-it.sh:/usr/local/bin/wait-for-it.sh:ro
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER:-authuser} -d ${POSTGRES_AUTH_DB:-authdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Redis for Session Storage
   redis:
     image: redis:7-alpine
     container_name: platform-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-DevRedisPass123!}
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
     networks:
       - platform-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-DevRedisPass123!}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Optional: Auth Service Container (uncomment for full containerized stack)
+  # auth-service:
+  #   build:
+  #     context: ./auth-service
+  #     dockerfile: Dockerfile
+  #   container_name: auth-service
+  #   environment:
+  #     ASPNETCORE_ENVIRONMENT: Development
+  #     ASPNETCORE_URLS: http://+:80
+  #     ConnectionStrings__DefaultConnection: "Host=postgres-auth;Port=5432;Database=${POSTGRES_AUTH_DB:-authdb};Username=${POSTGRES_AUTH_USER:-authuser};Password=${POSTGRES_AUTH_PASSWORD:-DevPassword123!}"
+  #   ports:
+  #     - "5001:80"
+  #   depends_on:
+  #     postgres-auth:
+  #       condition: service_healthy
+  #   networks:
+  #     - platform-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #   restart: unless-stopped
+
+  # Optional: Platform BFF Container (uncomment for full containerized stack)
+  # platform-bff:
+  #   build:
+  #     context: ./platform-host/platform-host-bff
+  #     dockerfile: Dockerfile
+  #   container_name: platform-bff
+  #   environment:
+  #     ASPNETCORE_ENVIRONMENT: Development
+  #     ASPNETCORE_URLS: http://+:80
+  #     ConnectionStrings__PlatformDb: "Host=postgres-platform;Port=5432;Database=${POSTGRES_PLATFORM_DB:-platformdb};Username=${POSTGRES_PLATFORM_USER:-platformuser};Password=${POSTGRES_PLATFORM_PASSWORD:-DevPassword123!}"
+  #     Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD:-DevRedisPass123!}"
+  #     Authentication__Authority: "http://auth-service"
+  #     Authentication__ClientSecret: ${AUTH_CLIENT_SECRET:-DevClientSecret123!}
+  #   ports:
+  #     - "5000:80"
+  #   depends_on:
+  #     postgres-platform:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - platform-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #   restart: unless-stopped
+
+  # Optional: Frontend Container (uncomment for full containerized stack)
+  # platform-frontend:
+  #   build:
+  #     context: ./platform-host/platform-host-frontend
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - NODE_ENV=development
+  #   container_name: platform-frontend
+  #   environment:
+  #     NODE_ENV: development
+  #     REACT_APP_API_URL: http://localhost:5000
+  #   ports:
+  #     - "3002:3002"
+  #   networks:
+  #     - platform-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3002"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 90s
+  #   restart: unless-stopped
 
 networks:
   platform-network:
     driver: bridge
+    name: platform-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
-  postgres-auth-data:
   postgres-platform-data:
+    name: platform-postgres-data
+  postgres-auth-data:
+    name: auth-postgres-data
   redis-data:
+    name: platform-redis-data
