@@ -141,8 +141,8 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         var tenants = await response.Content.ReadFromJsonAsync<List<PlatformBff.Models.Tenant.TenantInfo>>();
         tenants.Should().NotBeNull();
         tenants!.Should().HaveCountGreaterOrEqualTo(2);
-        tenants!.Should().Contain(t => t.Name == "Customer 1" || t.DisplayName == "Customer 1 Company");
-        tenants!.Should().Contain(t => t.Name == "Customer 2" || t.DisplayName == "Customer 2 Company");
+        tenants!.Should().Contain(t => t.Name == "Customer 1");
+        tenants!.Should().Contain(t => t.Name == "Customer 2");
     }
 
     [Fact]

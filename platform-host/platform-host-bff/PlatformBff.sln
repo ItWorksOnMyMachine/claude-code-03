@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff", "PlatformBff.csproj", "{79E12758-37FD-49E5-A4DB-D96EB98B32C7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff.Tests", "..\PlatformBff.Tests\PlatformBff.Tests.csproj", "{8E23B5C7-1185-4B5D-ACC4-D60812E1FD47}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformBff.Tests", "..\platform-host-bff.tests\PlatformBff.Tests.csproj", "{8E23B5C7-1185-4B5D-ACC4-D60812E1FD47}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
