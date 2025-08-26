@@ -12,62 +12,8 @@ public static class DatabaseSeeder
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
 
-        // Seed platform tenant if it doesn't exist
-        var platformTenantId = new Guid("00000000-0000-0000-0000-000000000001");
-        var platformTenant = await context.Tenants
-            .FirstOrDefaultAsync(t => t.Id == platformTenantId);
-
-        if (platformTenant == null)
-        {
-            platformTenant = new Tenant
-            {
-                Id = platformTenantId,
-                Name = "Platform Administration",
-                Slug = "platform-admin",
-                DisplayName = "Platform Administration",
-                IsPlatformTenant = true,
-                IsActive = true,
-                CreatedBy = "system",
-                Settings = """{"type": "platform", "features": ["cross-tenant-access", "admin-tools"]}""",
-                CreatedAt = DateTimeOffset.UtcNow,
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
-
-            context.Tenants.Add(platformTenant);
-            await context.SaveChangesAsync();
-
-            // Create default roles for platform tenant
-            var adminRole = new Role
-            {
-                Id = Guid.NewGuid(),
-                TenantId = platformTenantId,
-                Name = "Admin",
-                DisplayName = "Administrator",
-                Description = "Full platform administration access",
-                IsSystemRole = true,
-                Permissions = """["*"]""",
-                CreatedBy = "system",
-                CreatedAt = DateTimeOffset.UtcNow,
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
-
-            var supportRole = new Role
-            {
-                Id = Guid.NewGuid(),
-                TenantId = platformTenantId,
-                Name = "Support",
-                DisplayName = "Support Agent",
-                Description = "Customer support access",
-                IsSystemRole = true,
-                Permissions = """["tenant.view", "tenant.impersonate", "user.view"]""",
-                CreatedBy = "system",
-                CreatedAt = DateTimeOffset.UtcNow,
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
-
-            context.Roles.AddRange(adminRole, supportRole);
-            await context.SaveChangesAsync();
-        }
+        // Platform tenant seeding is handled by PlatformTenantSeeder.SeedAsync
+        // to avoid duplication and ensure consistent fixed GUIDs
 
         // Seed a demo tenant if needed (for development)
         if (DbContextExtensions.HostingEnvironment?.IsDevelopment() ?? false)
@@ -95,36 +41,49 @@ public static class DatabaseSeeder
                 context.Tenants.Add(demoTenant);
                 await context.SaveChangesAsync();
 
-                // Create default roles for demo tenant
-                var tenantAdminRole = new Role
+                // Create default roles for demo tenant if they don't exist
+                var tenantAdminRole = await context.Roles
+                    .FirstOrDefaultAsync(r => r.TenantId == demoTenantId && r.Name == "Admin");
+                
+                if (tenantAdminRole == null)
                 {
-                    Id = Guid.NewGuid(),
-                    TenantId = demoTenantId,
-                    Name = "Admin",
-                    DisplayName = "Administrator",
-                    Description = "Tenant administration access",
-                    IsSystemRole = true,
-                    Permissions = """["users.manage", "settings.manage", "billing.view"]""",
-                    CreatedBy = "system",
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    UpdatedAt = DateTimeOffset.UtcNow
-                };
+                    tenantAdminRole = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = demoTenantId,
+                        Name = "Admin",
+                        DisplayName = "Administrator",
+                        Description = "Tenant administration access",
+                        IsSystemRole = true,
+                        Permissions = """["users.manage", "settings.manage", "billing.view"]""",
+                        CreatedBy = "system",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
+                    context.Roles.Add(tenantAdminRole);
+                }
 
-                var memberRole = new Role
+                var memberRole = await context.Roles
+                    .FirstOrDefaultAsync(r => r.TenantId == demoTenantId && r.Name == "Member");
+                
+                if (memberRole == null)
                 {
-                    Id = Guid.NewGuid(),
-                    TenantId = demoTenantId,
-                    Name = "Member",
-                    DisplayName = "Member",
-                    Description = "Standard member access",
-                    IsSystemRole = true,
-                    Permissions = """["profile.edit", "content.view"]""",
-                    CreatedBy = "system",
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    UpdatedAt = DateTimeOffset.UtcNow
-                };
+                    memberRole = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = demoTenantId,
+                        Name = "Member",
+                        DisplayName = "Member",
+                        Description = "Standard member access",
+                        IsSystemRole = true,
+                        Permissions = """["profile.edit", "content.view"]""",
+                        CreatedBy = "system",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
+                    context.Roles.Add(memberRole);
+                }
 
-                context.Roles.AddRange(tenantAdminRole, memberRole);
                 await context.SaveChangesAsync();
             }
         }

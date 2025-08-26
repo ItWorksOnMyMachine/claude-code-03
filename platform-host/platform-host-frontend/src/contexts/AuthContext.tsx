@@ -34,7 +34,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = '/api';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkSession = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/session`, {
+      const response = await fetch(`${API_BASE_URL}/auth/session`, {
         method: 'GET',
         credentials: 'include', // Include cookies
         headers: {
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (returnUrl?: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      const response = await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearTenant = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tenant/clear`, {
+      const response = await fetch(`${API_BASE_URL}/tenant/clear`, {
         method: 'POST',
         credentials: 'include',
         headers: {

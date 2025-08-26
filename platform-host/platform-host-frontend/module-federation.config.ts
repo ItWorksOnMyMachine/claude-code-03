@@ -21,22 +21,33 @@ export default createModuleFederationConfig({
     // Material-UI packages as singletons
     '@mui/material': {
       singleton: true,
-      requiredVersion: '^7.3.1',
+      requiredVersion: false,
+      eager: true,
     },
     '@mui/system': {
       singleton: true,
+      requiredVersion: false,
+      eager: true,
     },
     '@mui/utils': {
       singleton: true,
+      requiredVersion: false,
+    },
+    '@mui/styled-engine': {
+      singleton: true,
+      requiredVersion: false,
+      eager: true,
     },
     // Emotion packages as singletons for consistent styling
     '@emotion/react': {
       singleton: true,
       requiredVersion: '^11.14.0',
+      eager: true,
     },
     '@emotion/styled': {
       singleton: true,
       requiredVersion: '^11.14.1',
+      eager: true,
     },
     // React Query for shared state management
     '@tanstack/react-query': {

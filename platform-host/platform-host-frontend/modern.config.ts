@@ -14,63 +14,53 @@ export default defineConfig({
     hmr: true, // Explicitly enable HMR
   },
   output: {
-    path: './dist',
     // Public path configuration for different environments
-    assetPrefix: process.env.ASSET_PREFIX || '/',
+    assetPrefix: '/',
     polyfill: 'entry',
     disableTsChecker: false,
   },
   performance: {
-    bundleAnalyze: process.env.BUNDLE_ANALYZE === 'true' ? {} : false,
+    // Bundle analysis only when enabled
   },
   tools: {
     devServer: {
       proxy: {
         '/api': {
-          target: 'http://localhost:5000',
+          target: 'http://localhost:5086',
           changeOrigin: true,
           ws: true, // Enable WebSocket proxying
           logLevel: 'debug', // Debug logging in development
         },
       },
     },
-    // Switch to webpack for Module Federation support
-    bundler: 'webpack',
-    webpack: (config, { env }) => {
-      if (env === 'production') {
-        // Production optimizations
-        config.optimization = {
-          ...config.optimization,
-          splitChunks: {
-            chunks: 'all',
-            cacheGroups: {
-              vendor: {
-                test: /[\\/]node_modules[\\/]/,
-                name: 'vendors',
-                priority: 10,
-              },
-              mui: {
-                test: /[\\/]node_modules[\\/]@mui[\\/]/,
-                name: 'mui',
-                priority: 20,
-              },
-              common: {
-                minChunks: 2,
-                priority: 5,
-                reuseExistingChunk: true,
-              },
-            },
-          },
-          runtimeChunk: 'single',
-          moduleIds: 'deterministic',
-        };
+    rspack: (config: any) => {
+      // Exclude test files from the build using IgnorePlugin
+      const { IgnorePlugin } = require('@rspack/core');
+      
+      if (!config.plugins) {
+        config.plugins = [];
       }
+      
+      // Ignore test files
+      config.plugins.push(
+        new IgnorePlugin({
+          resourceRegExp: /\.(test|spec)\.(ts|tsx|js|jsx)$/,
+        })
+      );
+      
+      // Ignore __tests__ directories
+      config.plugins.push(
+        new IgnorePlugin({
+          resourceRegExp: /\/__tests__\//,
+        })
+      );
+      
       return config;
     },
   },
   plugins: [
     appTools({
-      bundler: 'webpack', // Module Federation requires webpack
+      // Use default rspack bundler instead of webpack
     }),
     moduleFederationPlugin(),
   ],

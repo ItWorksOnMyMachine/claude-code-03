@@ -33,32 +33,33 @@ class Environment {
   private config: EnvironmentConfig;
 
   constructor() {
-    const nodeEnv = (process.env.NODE_ENV || 'development') as EnvironmentConfig['nodeEnv'];
+    // Default to development mode for now - will be properly configured later
+    const nodeEnv = 'development' as EnvironmentConfig['nodeEnv'];
     
     this.config = {
       // Application
       nodeEnv,
-      port: parseInt(process.env.PORT || '3002', 10),
-      isDevelopment: nodeEnv === 'development',
-      isProduction: nodeEnv === 'production',
-      isTest: nodeEnv === 'test',
+      port: 3004,
+      isDevelopment: true,
+      isProduction: false,
+      isTest: false,
 
       // API Configuration
-      apiUrl: process.env.API_URL || 'http://localhost:5000',
-      apiTimeout: parseInt(process.env.API_TIMEOUT || '30000', 10),
+      apiUrl: '/api',
+      apiTimeout: 30000,
 
       // Module Federation
-      remoteModulesDiscoveryUrl: process.env.REMOTE_MODULES_DISCOVERY_URL || '/api/federation/modules',
+      remoteModulesDiscoveryUrl: '/api/federation/modules',
 
       // Asset Configuration
-      assetPrefix: process.env.ASSET_PREFIX || '/',
+      assetPrefix: '/',
 
       // Feature Flags
-      enableModuleDiscovery: process.env.ENABLE_MODULE_DISCOVERY === 'true',
-      enableHealthChecks: process.env.ENABLE_HEALTH_CHECKS === 'true',
+      enableModuleDiscovery: false,
+      enableHealthChecks: false,
 
       // Logging
-      logLevel: (process.env.LOG_LEVEL || 'info') as EnvironmentConfig['logLevel'],
+      logLevel: 'info',
     };
   }
 

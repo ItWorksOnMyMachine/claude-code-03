@@ -95,6 +95,7 @@ builder.Services.AddScoped<Duende.IdentityServer.Services.IProfileService, AuthS
 // Configure Duende IdentityServer
 var identityServerBuilder = builder.Services.AddIdentityServer(options =>
 {
+    options.LicenseKey = builder.Configuration["IdentityServer:LicenseKey"];
     // In testing environment, use the test server's base address
     if (builder.Environment.IsEnvironment("Testing"))
     {
@@ -135,13 +136,23 @@ if (builder.Environment.IsEnvironment("Testing"))
 }
 else if (builder.Environment.IsDevelopment())
 {
-    // Use in-memory stores for development with full configuration
+    // Development: Use persistent stores with Entity Framework (same as production)
     identityServerBuilder
-        .AddInMemoryClients(AuthService.IdentityServer.IdentityServerConfig.GetClients(true))
-        .AddInMemoryIdentityResources(AuthService.IdentityServer.IdentityServerConfig.IdentityResources)
-        .AddInMemoryApiScopes(AuthService.IdentityServer.IdentityServerConfig.ApiScopes)
-        .AddInMemoryApiResources(AuthService.IdentityServer.IdentityServerConfig.ApiResources)
-        .AddInMemoryPersistedGrants()
+        .AddConfigurationStore(options =>
+        {
+            options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
+                sql => sql.MigrationsAssembly(migrationsAssembly));
+        })
+        // Configure Operational Store (grants, consent, tokens, codes)
+        .AddOperationalStore(options =>
+        {
+            options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
+                sql => sql.MigrationsAssembly(migrationsAssembly));
+            
+            // Enable automatic token cleanup
+            options.EnableTokenCleanup = true;
+            options.TokenCleanupInterval = 3600; // 1 hour
+        })
         .AddDeveloperSigningCredential();
 }
 else

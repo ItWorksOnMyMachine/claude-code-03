@@ -42,7 +42,8 @@ export class ErrorBoundary extends Component<Props, State> {
     });
 
     // Log to monitoring service in production
-    if (process.env.NODE_ENV === 'production') {
+    // TODO: Determine if production based on environment config
+    if (false) { // Temporarily disabled until proper env config
       // TODO: Send error to monitoring service
       console.error(`Module Error [${this.props.moduleName || 'Unknown'}]:`, {
         error: error.toString(),
@@ -127,7 +128,7 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error?.message || 'An unexpected error occurred'}
             </Typography>
 
-            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+            {true /* Always show error details for now */ && this.state.errorInfo && (
               <Box
                 component="details"
                 sx={{

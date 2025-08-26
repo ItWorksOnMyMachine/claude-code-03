@@ -10,7 +10,6 @@ namespace PlatformBff.Middleware;
 public class TokenRefreshMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly ISessionService _sessionService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TokenRefreshMiddleware> _logger;
@@ -25,19 +24,17 @@ public class TokenRefreshMiddleware
 
     public TokenRefreshMiddleware(
         RequestDelegate next,
-        ISessionService sessionService,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         ILogger<TokenRefreshMiddleware> logger)
     {
         _next = next;
-        _sessionService = sessionService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, ISessionService sessionService)
     {
         // Skip token refresh for excluded paths
         if (ExcludedPaths.Contains(context.Request.Path.Value?.ToLower() ?? string.Empty))
@@ -57,7 +54,7 @@ public class TokenRefreshMiddleware
         try
         {
             // Get current tokens
-            var tokens = await _sessionService.GetTokensAsync(sessionId);
+            var tokens = await sessionService.GetTokensAsync(sessionId);
             if (tokens == null || string.IsNullOrEmpty(tokens.RefreshToken))
             {
                 await _next(context);
@@ -84,7 +81,7 @@ public class TokenRefreshMiddleware
             {
                 try
                 {
-                    newTokens = await _sessionService.RefreshTokensAsync(sessionId, tokens.RefreshToken);
+                    newTokens = await sessionService.RefreshTokensAsync(sessionId, tokens.RefreshToken);
                     break; // Success, exit retry loop
                 }
                 catch (HttpRequestException ex) when (retryCount < maxRetries - 1)
@@ -104,11 +101,11 @@ public class TokenRefreshMiddleware
             if (newTokens != null)
             {
                 // Store the new tokens
-                await _sessionService.StoreTokensAsync(sessionId, newTokens);
+                await sessionService.StoreTokensAsync(sessionId, newTokens);
                 
                 // Extend session expiry
                 var sessionExtension = newTokens.ExpiresAt - DateTime.UtcNow;
-                await _sessionService.ExtendSessionAsync(sessionId, sessionExtension);
+                await sessionService.ExtendSessionAsync(sessionId, sessionExtension);
                 
                 _logger.LogInformation("Successfully refreshed tokens for session {SessionId}", sessionId);
             }

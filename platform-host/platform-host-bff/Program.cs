@@ -181,7 +181,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Add authorization handlers
-builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, 
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, 
     PlatformBff.Authorization.PlatformAdminAuthorizationHandler>();
 
 // Add CORS for development

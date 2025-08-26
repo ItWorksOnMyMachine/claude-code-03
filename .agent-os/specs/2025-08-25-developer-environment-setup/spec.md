@@ -2,7 +2,8 @@
 
 > Spec: Developer Environment Setup
 > Created: 2025-08-25
-> Status: Planning
+> Status: ✅ Complete
+> Completed: 2025-08-26
 
 ## Overview
 

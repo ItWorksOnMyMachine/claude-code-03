@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react';
 import { 
-  Grid, 
   Card, 
   CardContent, 
   CardActions,
@@ -8,6 +7,7 @@ import {
   Button,
   Box,
   Chip,
+  Grid,
 } from '@mui/material';
 import { Package, ExternalLink } from 'lucide-react';
 import { useModuleFederation } from '@/contexts/ModuleFederationContext';

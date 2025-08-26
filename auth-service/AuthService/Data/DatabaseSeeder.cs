@@ -30,13 +30,19 @@ public static class DatabaseSeeder
         var authContext = services.GetRequiredService<AuthDbContext>();
         await authContext.Database.MigrateAsync();
 
-        // Migrate IdentityServer Configuration
-        var configContext = services.GetRequiredService<ConfigurationDbContext>();
-        await configContext.Database.MigrateAsync();
+        // Migrate IdentityServer Configuration (only if using Entity Framework stores)
+        var configContext = services.GetService<ConfigurationDbContext>();
+        if (configContext != null)
+        {
+            await configContext.Database.MigrateAsync();
+        }
 
-        // Migrate IdentityServer Operational
-        var grantContext = services.GetRequiredService<PersistedGrantDbContext>();
-        await grantContext.Database.MigrateAsync();
+        // Migrate IdentityServer Operational (only if using Entity Framework stores)
+        var grantContext = services.GetService<PersistedGrantDbContext>();
+        if (grantContext != null)
+        {
+            await grantContext.Database.MigrateAsync();
+        }
     }
 
     private static async Task SeedIdentityDataAsync(IServiceProvider services)
@@ -116,7 +122,12 @@ public static class DatabaseSeeder
 
     private static async Task SeedIdentityServerDataAsync(IServiceProvider services)
     {
-        var context = services.GetRequiredService<ConfigurationDbContext>();
+        // Only seed if using Entity Framework stores
+        var context = services.GetService<ConfigurationDbContext>();
+        if (context == null)
+        {
+            return; // In-memory stores are used, skip database seeding
+        }
 
         // Seed Clients
         if (!await context.Clients.AnyAsync())
@@ -128,7 +139,7 @@ public static class DatabaseSeeder
                 {
                     ClientId = "platform-bff",
                     ClientName = "Platform BFF",
-                    ClientSecrets = { new Secret("platform-bff-secret".Sha256()) },
+                    ClientSecrets = { new Secret("development-secret".Sha256()) },
                     
                     AllowedGrantTypes = GrantTypes.Code,
                     RequirePkce = true,

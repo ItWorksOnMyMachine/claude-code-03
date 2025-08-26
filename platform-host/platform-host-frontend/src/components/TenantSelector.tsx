@@ -28,7 +28,7 @@ interface TenantSelectorProps {
   showHeader?: boolean;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = '/api';
 
 export const TenantSelector: React.FC<TenantSelectorProps> = ({
   onTenantSelect,
@@ -47,7 +47,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`${API_BASE_URL}/api/tenant/available`, {
+        const response = await fetch(`${API_BASE_URL}/tenant/available`, {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -76,7 +76,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
       setSelecting(tenantId);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/api/tenant/select`, {
+      const response = await fetch(`${API_BASE_URL}/tenant/select`, {
         method: 'POST',
         credentials: 'include',
         headers: {
