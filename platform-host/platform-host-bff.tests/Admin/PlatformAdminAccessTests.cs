@@ -148,8 +148,65 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public async Task PlatformAdmin_CanImpersonateTenant_AndSwitchBack()
     {
-        // Arrange
-        var factory = CreateFactory(isPlatformAdmin: true);
+        // Arrange - Create factory with dynamic session handling
+        var testId = System.Threading.Interlocked.Increment(ref _testCounter);
+        var dbName = $"ImpersonationTest_{testId}";
+        var sessionData = new TestSessionService(null, true); // Platform admin, no initial tenant
+        
+        var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Testing");
+            builder.ConfigureTestServices(services =>
+            {
+                // Replace DbContext with in-memory database
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
+                if (descriptor != null) services.Remove(descriptor);
+                
+                services.AddDbContext<PlatformDbContext>(options =>
+                {
+                    options.UseInMemoryDatabase(dbName);
+                    options.EnableSensitiveDataLogging();
+                });
+
+                // Use the same session service instance for all requests
+                services.AddSingleton<ISessionService>(sessionData);
+                
+                // Mock tenant service for platform admin check
+                var tenantServiceMock = new Mock<ITenantService>();
+                tenantServiceMock.Setup(x => x.IsPlatformAdminAsync(It.IsAny<string>()))
+                    .ReturnsAsync(true);
+                services.AddScoped<ITenantService>(_ => tenantServiceMock.Object);
+                
+                // Configure tenant context
+                services.AddScoped<ITenantContext, TestTenantContext>();
+                
+                // Add authentication
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = "Test";
+                    options.DefaultChallengeScheme = "Test";
+                })
+                .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
+                
+                // Configure static OIDC configuration
+                services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+                {
+                    var config = new OpenIdConnectConfiguration
+                    {
+                        Issuer = "https://test-idp.local",
+                        AuthorizationEndpoint = "https://test-idp.local/connect/authorize",
+                        TokenEndpoint = "https://test-idp.local/connect/token",
+                        UserInfoEndpoint = "https://test-idp.local/connect/userinfo",
+                        JwksUri = "https://test-idp.local/.well-known/jwks.json",
+                        EndSessionEndpoint = "https://test-idp.local/connect/endsession"
+                    };
+                    options.Configuration = config;
+                    options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(config);
+                    options.Events ??= new OpenIdConnectEvents();
+                });
+            });
+        });
+        
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         
@@ -191,7 +248,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         finalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var finalTenant = await finalResponse.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantContext>();
         
-        // Assert back to platform tenant
+        // Assert back to platform admin state
         finalTenant.Should().NotBeNull();
         finalTenant!.IsImpersonating.Should().BeFalse();
         finalTenant.IsPlatformAdmin.Should().BeTrue();
@@ -379,6 +436,30 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         public Task<TokenData?> GetTokensAsync(string sessionId) => Task.FromResult<TokenData?>(null);
         public Task<TokenData?> RefreshTokensAsync(string sessionId, string refreshToken) => Task.FromResult<TokenData?>(null);
         public Task RevokeTokensAsync(string sessionId) => Task.CompletedTask;
+        
+        // Helper methods for testing impersonation
+        public void SetImpersonation(Guid tenantId, string tenantName)
+        {
+            if (_sessions.TryGetValue("test-session", out var session))
+            {
+                session.SelectedTenantId = tenantId;
+                session.SelectedTenantName = tenantName;
+                session.IsImpersonating = true;
+                session.ImpersonationExpiresAt = DateTimeOffset.UtcNow.AddHours(1);
+            }
+        }
+        
+        public void ClearImpersonation()
+        {
+            if (_sessions.TryGetValue("test-session", out var session))
+            {
+                // Restore platform admin state
+                session.SelectedTenantId = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001") : null;
+                session.SelectedTenantName = _isPlatformAdmin ? "Platform" : null;
+                session.IsImpersonating = false;
+                session.ImpersonationExpiresAt = null;
+            }
+        }
     }
 
     private class TestTenantContext : ITenantContext
