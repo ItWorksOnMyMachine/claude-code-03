@@ -165,7 +165,8 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var tenant = await response.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantInfo>(_jsonOptions);
         tenant.Should().NotBeNull();
-        tenant!.Name.Should().Be("Test Tenant");
+        tenant!.Name.Should().Be("test-tenant");
+        tenant!.DisplayName.Should().Be("Test Tenant");
     }
 
     [Fact]
