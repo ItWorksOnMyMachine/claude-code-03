@@ -1,19 +1,17 @@
-import React, { Suspense, lazy } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardActions,
-  Typography, 
-  Button,
+import { useModuleFederation } from '@/contexts/ModuleFederationContext';
+import { useNavigate } from '@modern-js/runtime/router';
+import {
   Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
   Chip,
   Grid,
+  Typography,
 } from '@mui/material';
-import { Package, ExternalLink } from 'lucide-react';
-import { useModuleFederation } from '@/contexts/ModuleFederationContext';
-import LoadingFallback from '@/components/LoadingFallback';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import { useNavigate } from '@modern-js/runtime/router';
+import { ExternalLink } from 'lucide-react';
+import React from 'react';
 
 const ModulesPage: React.FC = () => {
   const { modules, loadModule, isLoading, error } = useModuleFederation();
@@ -66,10 +64,10 @@ const ModulesPage: React.FC = () => {
       </Typography>
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        {availableModules.map((module) => (
-          <Grid item xs={12} sm={6} md={4} key={module.name}>
-            <Card 
-              sx={{ 
+        {availableModules.map(module => (
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={module.name}>
+            <Card
+              sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
@@ -86,21 +84,21 @@ const ModulesPage: React.FC = () => {
                       {module.displayName}
                     </Typography>
                     {module.status === 'coming-soon' && (
-                      <Chip 
-                        label="Coming Soon" 
-                        size="small" 
+                      <Chip
+                        label="Coming Soon"
+                        size="small"
                         color="warning"
                         sx={{ mt: 0.5 }}
                       />
                     )}
                   </Box>
                 </Box>
-                
+
                 <Typography variant="body2" color="text.secondary">
                   {module.description}
                 </Typography>
               </CardContent>
-              
+
               <CardActions>
                 <Button
                   size="small"
@@ -108,7 +106,9 @@ const ModulesPage: React.FC = () => {
                   onClick={() => handleLoadModule(module.name, module.route)}
                   disabled={module.status === 'coming-soon' || isLoading}
                 >
-                  {module.status === 'coming-soon' ? 'Coming Soon' : 'Open Module'}
+                  {module.status === 'coming-soon'
+                    ? 'Coming Soon'
+                    : 'Open Module'}
                 </Button>
               </CardActions>
             </Card>
