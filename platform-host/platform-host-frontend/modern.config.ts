@@ -16,7 +16,7 @@ export default defineConfig({
   output: {
     // Public path configuration for different environments
     assetPrefix: '/',
-    polyfill: 'entry',
+    polyfill: 'off', // Disable polyfills to avoid core-js issues
     disableTsChecker: false,
   },
   performance: {
@@ -33,24 +33,22 @@ export default defineConfig({
         },
       },
     },
-    rspack: (config: any) => {
+    webpack: (config: any, { webpack }: any) => {
       // Exclude test files from the build using IgnorePlugin
-      const { IgnorePlugin } = require('@rspack/core');
-      
       if (!config.plugins) {
         config.plugins = [];
       }
       
       // Ignore test files
       config.plugins.push(
-        new IgnorePlugin({
+        new webpack.IgnorePlugin({
           resourceRegExp: /\.(test|spec)\.(ts|tsx|js|jsx)$/,
         })
       );
       
       // Ignore __tests__ directories
       config.plugins.push(
-        new IgnorePlugin({
+        new webpack.IgnorePlugin({
           resourceRegExp: /\/__tests__\//,
         })
       );
@@ -60,7 +58,7 @@ export default defineConfig({
   },
   plugins: [
     appTools({
-      // Use default rspack bundler instead of webpack
+      bundler: 'webpack', // Use webpack instead of rspack for better Module Federation compatibility
     }),
     moduleFederationPlugin(),
   ],

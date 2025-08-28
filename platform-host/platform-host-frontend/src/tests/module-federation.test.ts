@@ -1,6 +1,26 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { beforeAll, describe, expect, it } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
+import mfConfig from '../../module-federation.config';
+
+describe('Module Federation shared config guard', () => {
+  const shared = (mfConfig as any).shared || {};
+
+  it('does not share Emotion or MUI styled-engine', () => {
+    expect(shared['@emotion/react']).toBeUndefined();
+    expect(shared['@emotion/styled']).toBeUndefined();
+    expect(shared['@mui/styled-engine']).toBeUndefined();
+  });
+
+  it('pins versions for MUI packages', () => {
+    for (const pkg of ['@mui/material', '@mui/system']) {
+      expect(shared[pkg]).toBeDefined();
+      const v = shared[pkg].version ?? shared[pkg].requiredVersion;
+      expect(typeof v).toBe('string');
+      expect(v.length).toBeGreaterThan(0);
+    }
+  });
+});
 
 describe('Module Federation Configuration', () => {
   const rootDir = path.resolve(__dirname, '../..');
@@ -20,7 +40,7 @@ describe('Module Federation Configuration', () => {
     it('should be configured as host application', () => {
       const mfConfigPath = path.join(rootDir, 'module-federation.config.ts');
       expect(fs.existsSync(mfConfigPath)).toBe(true);
-      
+
       const mfConfig = fs.readFileSync(mfConfigPath, 'utf-8');
       expect(mfConfig).toContain("name: 'platform_host'");
     });
@@ -57,26 +77,35 @@ describe('Module Federation Configuration', () => {
 
   describe('Remote Module Configuration', () => {
     it('should support dynamic remote module loading', () => {
-      const remoteLoaderPath = path.join(rootDir, 'src/services/RemoteLoader.ts');
+      const remoteLoaderPath = path.join(
+        rootDir,
+        'src/services/RemoteLoader.ts',
+      );
       expect(fs.existsSync(remoteLoaderPath)).toBe(true);
-      
+
       const remoteLoader = fs.readFileSync(remoteLoaderPath, 'utf-8');
       expect(remoteLoader).toContain('loadRemote');
       expect(remoteLoader).toContain('RemoteModuleConfig');
     });
 
     it('should have TypeScript definitions for federated modules', () => {
-      const typeDefsPath = path.join(rootDir, 'src/types/module-federation.d.ts');
+      const typeDefsPath = path.join(
+        rootDir,
+        'src/types/module-federation.d.ts',
+      );
       expect(fs.existsSync(typeDefsPath)).toBe(true);
-      
+
       const typeDefs = fs.readFileSync(typeDefsPath, 'utf-8');
       expect(typeDefs).toContain('@module-federation/enhanced');
     });
 
     it('should have ModuleFederationContext for state management', () => {
-      const contextPath = path.join(rootDir, 'src/contexts/ModuleFederationContext.tsx');
+      const contextPath = path.join(
+        rootDir,
+        'src/contexts/ModuleFederationContext.tsx',
+      );
       expect(fs.existsSync(contextPath)).toBe(true);
-      
+
       const context = fs.readFileSync(contextPath, 'utf-8');
       expect(context).toContain('ModuleFederationProvider');
       expect(context).toContain('useModuleFederation');

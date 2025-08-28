@@ -7,7 +7,9 @@
     "paths": {
       "@/*": ["./src/*"],
       "@shared/*": ["./shared/*"]
-    }
+    },
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler"
   },
   "include": ["src", "shared", "config", "modern.config.ts"],
   "exclude": [

@@ -1,5 +1,5 @@
 import { Outlet } from '@modern-js/runtime/router';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline, StyledEngineProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '@/components/layout';
 import { ModuleFederationProvider } from '@/contexts/ModuleFederationContext';
@@ -18,19 +18,21 @@ const queryClient = new QueryClient({
 
 export default function Layout() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ModuleFederationProvider>
-            <ErrorBoundary>
-              <AppShell>
-                <Outlet />
-              </AppShell>
-            </ErrorBoundary>
-          </ModuleFederationProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <StyledEngineProvider injectFirst>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <ModuleFederationProvider>
+              <ErrorBoundary>
+                <AppShell>
+                  <Outlet />
+                </AppShell>
+              </ErrorBoundary>
+            </ModuleFederationProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </StyledEngineProvider>
   );
 }

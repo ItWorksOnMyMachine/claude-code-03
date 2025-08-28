@@ -1,63 +1,46 @@
 import { createModuleFederationConfig } from '@module-federation/modern-js';
+import pkg from './package.json' assert { type: 'json' };
 
 export default createModuleFederationConfig({
   name: 'platform_host',
-  filename: 'remoteEntry.js',
-  exposes: {},
-  remotes: {
-    // Remote modules will be dynamically added at runtime
-    // Example: cms: 'cms@http://localhost:3003/remoteEntry.js',
-  },
+  remotes: {},
   shared: {
-    // React and React-DOM as singletons to prevent multiple instances
     react: {
       singleton: true,
-      requiredVersion: '^18.3.1',
+      eager: true,
+      requiredVersion: pkg.dependencies.react,
     },
     'react-dom': {
       singleton: true,
-      requiredVersion: '^18.3.1',
+      eager: true,
+      requiredVersion: pkg.dependencies['react-dom'],
     },
-    // Material-UI packages as singletons
+
+    // Pin MUI versions; keep styled-engine and emotion unshared
     '@mui/material': {
       singleton: true,
-      requiredVersion: false,
       eager: true,
+      version: pkg.dependencies['@mui/material'],
+      requiredVersion: pkg.dependencies['@mui/material'],
     },
     '@mui/system': {
       singleton: true,
-      requiredVersion: false,
       eager: true,
+      version: pkg.dependencies['@mui/system'],
+      requiredVersion: pkg.dependencies['@mui/system'],
     },
-    '@mui/utils': {
-      singleton: true,
-      requiredVersion: false,
-    },
-    '@mui/styled-engine': {
-      singleton: true,
-      requiredVersion: false,
-      eager: true,
-    },
-    // Emotion packages as singletons for consistent styling
-    '@emotion/react': {
-      singleton: true,
-      requiredVersion: '^11.14.0',
-      eager: true,
-    },
-    '@emotion/styled': {
-      singleton: true,
-      requiredVersion: '^11.14.1',
-      eager: true,
-    },
-    // React Query for shared state management
+
+    // '@mui/styled-engine': undefined,
+    // '@emotion/react': undefined,
+    // '@emotion/styled': undefined,
+
     '@tanstack/react-query': {
       singleton: true,
-      requiredVersion: '^5.85.5',
+      requiredVersion: pkg.dependencies['@tanstack/react-query'],
     },
-    // ModernJS runtime
     '@modern-js/runtime': {
       singleton: true,
-      requiredVersion: '2.68.10',
+      requiredVersion: pkg.dependencies['@modern-js/runtime'],
     },
   },
   // Enable runtime plugins for dynamic remote loading
