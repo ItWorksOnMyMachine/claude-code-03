@@ -1,11 +1,11 @@
 module.exports = {
-  testEnvironment: 'node',
-  testMatch: [
-    '**/test/**/*.test.js'
-  ],
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/platform-host/',
-    '/auth-service/'
-  ]
+    projects: [
+        {
+            displayName: "root",
+            testEnvironment: "node",
+            testMatch: ["<rootDir>/test/**/*.test.js"],
+            testPathIgnorePatterns: ["/node_modules/", "/auth-service/"], // removed '/platform-host/'
+        },
+        "<rootDir>/platform-host/platform-host-frontend/jest.config.js",
+    ],
 };
