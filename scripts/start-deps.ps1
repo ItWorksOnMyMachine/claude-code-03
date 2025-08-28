@@ -89,7 +89,7 @@ try {
             
             Write-Host "`nApplication services can now be started locally:" -ForegroundColor Cyan
             Write-Host "  BFF: cd platform-host\platform-host-bff && dotnet run" -ForegroundColor Gray
-            Write-Host "  Authentication Service: cd auth\AuthService && dotnet run" -ForegroundColor Gray
+            Write-Host "  Auth Service: cd auth-service\AuthService && dotnet run" -ForegroundColor Gray
             Write-Host "  Frontend: cd platform-host\platform-host-frontend && npm run dev" -ForegroundColor Gray
             
             Write-Host "`nRun 'docker-compose ps' to see running containers" -ForegroundColor Gray

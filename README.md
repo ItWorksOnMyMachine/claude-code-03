@@ -141,10 +141,10 @@ platform-host-dev-setup/
 
 ## Documentation
 
-- [Developer Setup Guide](./DEVELOPER_SETUP.md) - Detailed setup instructions
-- [Architecture Overview](./ARCHITECTURE.md) - System design and patterns
-- [Development Workflows](./WORKFLOWS.md) - Common development tasks
-- [Troubleshooting Guide](./TROUBLESHOOTING.md) - Solutions to common issues
+- [Developer Setup Guide](./documentation/DEVELOPER_SETUP.md) - Detailed setup instructions
+- [Architecture Overview](./documentation/ARCHITECTURE.md) - System design and patterns
+- [Development Workflows](./documentation/WORKFLOWS.md) - Common development tasks
+- [Troubleshooting Guide](./documentation/TROUBLESHOOTING.md) - Solutions to common issues
 
 ## Testing
 

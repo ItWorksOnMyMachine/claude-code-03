@@ -2,11 +2,14 @@
 
 # Start All Services - Platform Stack
 # Starts all services including databases, cache, auth service, BFF, and frontend
+# Since application services are not containerized, this script:
+# 1. Starts infrastructure services in Docker (PostgreSQL, Redis)
+# 2. Starts application services locally (BFF, Auth Service, Frontend)
 #
 # Usage:
-#   ./start-all.sh           # Start all services in foreground
-#   ./start-all.sh -d        # Start all services in detached mode
-#   ./start-all.sh -build    # Rebuild images before starting
+#   ./start-all.sh           # Start infrastructure in foreground (manual app start required)
+#   ./start-all.sh -d        # Start all services in detached/background mode
+#   ./start-all.sh -build    # Rebuild Docker images before starting
 #
 # Example:
 #   ./scripts/start-all.sh -d
@@ -80,26 +83,71 @@ fi
 # Change to project root directory
 cd "$PROJECT_ROOT"
 
-echo -e "\n${YELLOW}Starting all services...${NC}"
-echo -e "${GRAY}Services: postgres-platform, postgres-auth, redis, platform-bff, auth-service${NC}\n"
+echo -e "\n${YELLOW}Starting infrastructure services (Docker)...${NC}"
+echo -e "${GRAY}Services: postgres-platform, postgres-auth, redis${NC}\n"
 
-# Run docker-compose
+# Add service names to arguments for docker-compose
+ARGS="$ARGS postgres-platform postgres-auth redis"
+
+# Run docker-compose for infrastructure
 if docker-compose $ARGS; then
-    echo -e "\n${GREEN}✓ All services started successfully!${NC}"
+    echo -e "\n${GREEN}✓ Infrastructure services started successfully!${NC}"
     
     if [ "$DETACHED" = true ]; then
+        # Start application services in background
+        echo -e "\n${YELLOW}Starting application services locally...${NC}"
+        
+        # Start Auth Service
+        echo -e "${CYAN}Starting Auth Service...${NC}"
+        cd "$PROJECT_ROOT/auth-service/AuthService"
+        nohup dotnet run > "$PROJECT_ROOT/auth-service.log" 2>&1 &
+        AUTH_PID=$!
+        echo "Auth Service PID: $AUTH_PID"
+        
+        # Start Platform BFF
+        echo -e "${CYAN}Starting Platform BFF...${NC}"
+        cd "$PROJECT_ROOT/platform-host/platform-host-bff"
+        nohup dotnet run > "$PROJECT_ROOT/platform-bff.log" 2>&1 &
+        BFF_PID=$!
+        echo "Platform BFF PID: $BFF_PID"
+        
+        # Start Frontend
+        echo -e "${CYAN}Starting Frontend...${NC}"
+        cd "$PROJECT_ROOT/platform-host/platform-host-frontend"
+        nohup npm run dev > "$PROJECT_ROOT/frontend.log" 2>&1 &
+        FRONTEND_PID=$!
+        echo "Frontend PID: $FRONTEND_PID"
+        
+        # Save PIDs to file for later cleanup
+        echo "$AUTH_PID" > "$PROJECT_ROOT/.app-pids"
+        echo "$BFF_PID" >> "$PROJECT_ROOT/.app-pids"
+        echo "$FRONTEND_PID" >> "$PROJECT_ROOT/.app-pids"
+        
+        echo -e "\n${YELLOW}Waiting for services to initialize...${NC}"
+        sleep 5
+        
+        echo -e "\n${GREEN}✓ All services starting!${NC}"
         echo -e "\n${CYAN}Service URLs:${NC}"
+        echo -e "  ${WHITE}Frontend:        http://localhost:3002${NC}"
         echo -e "  ${WHITE}Platform BFF:    http://localhost:5000${NC}"
         echo -e "  ${WHITE}Auth Service:    http://localhost:5001${NC}"
-        echo -e "  ${WHITE}Frontend:        http://localhost:3002${NC}"
         echo -e "  ${WHITE}PostgreSQL Platform: localhost:5432${NC}"
         echo -e "  ${WHITE}PostgreSQL Auth:     localhost:5433${NC}"
         echo -e "  ${WHITE}Redis:           localhost:6379${NC}"
+        
+        echo -e "\n${YELLOW}Note: Application services are running in background${NC}"
+        echo -e "${GRAY}Application logs are in: auth-service.log, platform-bff.log, frontend.log${NC}"
+        echo -e "${GRAY}To stop all services, run: ./scripts/stop-all.sh${NC}"
+        echo -e "${GRAY}To stop infrastructure only: docker-compose down${NC}"
         echo -e "\n${GRAY}Run './scripts/health-check.sh' to verify all services are healthy${NC}"
-        echo -e "${GRAY}Run './scripts/logs.sh' to view logs${NC}"
-        echo -e "${GRAY}Run 'docker-compose down' to stop all services${NC}"
+    else
+        echo -e "\n${YELLOW}Infrastructure services are running in foreground mode.${NC}"
+        echo -e "${GRAY}To start application services, run this script with -d flag or manually start:${NC}"
+        echo -e "  ${GRAY}Auth Service: cd auth-service/AuthService && dotnet run${NC}"
+        echo -e "  ${GRAY}BFF: cd platform-host/platform-host-bff && dotnet run${NC}"
+        echo -e "  ${GRAY}Frontend: cd platform-host/platform-host-frontend && npm run dev${NC}"
     fi
 else
-    echo -e "${RED}✗ Failed to start services. Check the logs above for errors.${NC}"
+    echo -e "${RED}✗ Failed to start infrastructure services. Check the logs above for errors.${NC}"
     exit 1
 fi
