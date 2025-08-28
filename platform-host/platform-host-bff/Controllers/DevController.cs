@@ -51,7 +51,7 @@ public class DevController : ControllerBase
         // Check Auth Service
         try
         {
-            var authUrl = _configuration["Authentication:Authority"] ?? "http://localhost:5001";
+            var authUrl = _configuration["Authentication:Authority"] ?? "http://localhost:5214";
             var authClient = _httpClientFactory.CreateClient();
             authClient.Timeout = TimeSpan.FromSeconds(5);
             

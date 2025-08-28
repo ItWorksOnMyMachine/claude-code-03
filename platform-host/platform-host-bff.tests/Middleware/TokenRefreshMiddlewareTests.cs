@@ -35,7 +35,6 @@ public class TokenRefreshMiddlewareTests
         
         _middleware = new TokenRefreshMiddleware(
             next: (innerHttpContext) => Task.CompletedTask,
-            _sessionServiceMock.Object,
             _httpClientFactoryMock.Object,
             _configurationMock.Object,
             _loggerMock.Object);
@@ -48,7 +47,7 @@ public class TokenRefreshMiddlewareTests
         _httpContext.Request.Cookies = new TestRequestCookieCollection();
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.GetTokensAsync(It.IsAny<string>()), Times.Never);
@@ -75,7 +74,7 @@ public class TokenRefreshMiddlewareTests
             .ReturnsAsync(tokens);
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.RefreshTokensAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
@@ -110,7 +109,7 @@ public class TokenRefreshMiddlewareTests
             });
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.RefreshTokensAsync(sessionId, tokens.RefreshToken), Times.Once);
@@ -140,7 +139,7 @@ public class TokenRefreshMiddlewareTests
             .ThrowsAsync(new Exception("Refresh failed"));
 
         // Act
-        var exception = await Record.ExceptionAsync(() => _middleware.InvokeAsync(_httpContext));
+        var exception = await Record.ExceptionAsync(() => _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object));
 
         // Assert
         Assert.Null(exception); // Should not throw, just log and continue
@@ -167,7 +166,7 @@ public class TokenRefreshMiddlewareTests
             .ReturnsAsync(tokens);
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.RefreshTokensAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
@@ -204,7 +203,7 @@ public class TokenRefreshMiddlewareTests
             .ReturnsAsync(newTokens);
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.StoreTokensAsync(sessionId, newTokens), Times.Once);
@@ -249,7 +248,7 @@ public class TokenRefreshMiddlewareTests
             });
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.RefreshTokensAsync(sessionId, tokens.RefreshToken), Times.Exactly(2));
@@ -286,7 +285,7 @@ public class TokenRefreshMiddlewareTests
             .ReturnsAsync(rotatedTokens);
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.StoreTokensAsync(sessionId, It.Is<TokenData>(t => 
@@ -316,7 +315,7 @@ public class TokenRefreshMiddlewareTests
             .ReturnsAsync(tokens);
 
         // Act
-        await _middleware.InvokeAsync(_httpContext);
+        await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
 
         // Assert
         _sessionServiceMock.Verify(x => x.GetTokensAsync(It.IsAny<string>()), Times.Never);
