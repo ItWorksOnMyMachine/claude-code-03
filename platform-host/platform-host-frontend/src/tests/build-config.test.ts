@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeAll, jest } from '@jest/globals';
+import { beforeAll, describe, expect, it } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 
 describe('Build Configuration', () => {
   describe('ModernJS Configuration', () => {
     let modernConfig: any;
-    
+
     beforeAll(() => {
       const configPath = path.resolve(__dirname, '../../modern.config.ts');
       const configContent = fs.readFileSync(configPath, 'utf-8');
-      
+
       // Basic parsing to check config structure
       modernConfig = configContent;
     });
@@ -24,7 +24,7 @@ describe('Build Configuration', () => {
 
     it('should have API proxy configured for /api/*', () => {
       expect(modernConfig).toContain("'/api'");
-      expect(modernConfig).toContain('http://localhost:5000');
+      expect(modernConfig).toContain('http://localhost:5086');
     });
 
     it('should have Module Federation plugin configured', () => {
@@ -34,9 +34,12 @@ describe('Build Configuration', () => {
 
   describe('Module Federation Configuration', () => {
     let federationConfig: any;
-    
+
     beforeAll(() => {
-      const configPath = path.resolve(__dirname, '../../module-federation.config.ts');
+      const configPath = path.resolve(
+        __dirname,
+        '../../module-federation.config.ts',
+      );
       const configContent = fs.readFileSync(configPath, 'utf-8');
       federationConfig = configContent;
     });
@@ -59,7 +62,7 @@ describe('Build Configuration', () => {
 
   describe('Package Scripts', () => {
     let packageJson: any;
-    
+
     beforeAll(() => {
       const packagePath = path.resolve(__dirname, '../../package.json');
       packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
@@ -90,7 +93,7 @@ describe('Build Configuration', () => {
     it('should have different configs for dev and prod', () => {
       const configPath = path.resolve(__dirname, '../../modern.config.ts');
       const configContent = fs.readFileSync(configPath, 'utf-8');
-      
+
       // Check for environment-specific configuration
       expect(configContent).toContain('dev:');
       expect(configContent).toContain('server:');
@@ -101,7 +104,7 @@ describe('Build Configuration', () => {
     it('should have HMR enabled in development', () => {
       const configPath = path.resolve(__dirname, '../../modern.config.ts');
       const configContent = fs.readFileSync(configPath, 'utf-8');
-      
+
       // ModernJS enables HMR by default in dev mode
       expect(configContent).toContain('dev:');
     });
@@ -111,7 +114,7 @@ describe('Build Configuration', () => {
     it('should have production optimizations configured', () => {
       const configPath = path.resolve(__dirname, '../../modern.config.ts');
       const configContent = fs.readFileSync(configPath, 'utf-8');
-      
+
       // Check for tools configuration
       expect(configContent).toContain('tools:');
     });
@@ -138,17 +141,18 @@ describe('API Proxy Configuration', () => {
   it('should proxy /api/* requests to port 5000', () => {
     const configPath = path.resolve(__dirname, '../../modern.config.ts');
     const configContent = fs.readFileSync(configPath, 'utf-8');
-    
+
     expect(configContent).toContain('proxy');
-    expect(configContent).toContain('5000');
+    expect(configContent).toContain('5086');
   });
 
   it('should handle WebSocket upgrade for API proxy', () => {
     const configPath = path.resolve(__dirname, '../../modern.config.ts');
     const configContent = fs.readFileSync(configPath, 'utf-8');
-    
+
     // Check if ws configuration exists (optional)
-    const hasWebSocketConfig = configContent.includes('ws:') || configContent.includes('changeOrigin');
+    const hasWebSocketConfig =
+      configContent.includes('ws:') || configContent.includes('changeOrigin');
     expect(hasWebSocketConfig).toBe(true);
   });
 });

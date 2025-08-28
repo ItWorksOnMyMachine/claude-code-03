@@ -104,7 +104,7 @@ describe('TenantSelector', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:5000/api/tenant/select',
+      '/api/tenant/select',
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',

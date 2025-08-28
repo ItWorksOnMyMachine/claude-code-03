@@ -33,34 +33,67 @@ class Environment {
   private config: EnvironmentConfig;
 
   constructor() {
-    // Default to development mode for now - will be properly configured later
-    const nodeEnv = 'development' as EnvironmentConfig['nodeEnv'];
+    // Check if we're in test environment by looking for global process object
+    // This is safe because Jest provides process globally
+    const isJest = typeof process !== 'undefined' && process.env && process.env.NODE_ENV;
+    const nodeEnv = (isJest ? process.env.NODE_ENV : 'development') as EnvironmentConfig['nodeEnv'];
     
-    this.config = {
-      // Application
-      nodeEnv,
-      port: 3004,
-      isDevelopment: true,
-      isProduction: false,
-      isTest: false,
+    if (isJest && typeof process !== 'undefined' && process.env) {
+      // Test environment - read from process.env
+      const env = process.env;
+      this.config = {
+        // Application
+        nodeEnv: (env.NODE_ENV || 'test') as EnvironmentConfig['nodeEnv'],
+        port: parseInt(env.PORT || '3002', 10),
+        isDevelopment: env.NODE_ENV === 'development',
+        isProduction: env.NODE_ENV === 'production',
+        isTest: env.NODE_ENV === 'test',
 
-      // API Configuration
-      apiUrl: '/api',
-      apiTimeout: 30000,
+        // API Configuration
+        apiUrl: env.API_URL || (env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000'),
+        apiTimeout: parseInt(env.API_TIMEOUT || '30000', 10),
 
-      // Module Federation
-      remoteModulesDiscoveryUrl: '/api/federation/modules',
+        // Module Federation
+        remoteModulesDiscoveryUrl: env.REMOTE_MODULES_DISCOVERY_URL || '/api/federation/modules',
 
-      // Asset Configuration
-      assetPrefix: '/',
+        // Asset Configuration
+        assetPrefix: env.ASSET_PREFIX || '/',
 
-      // Feature Flags
-      enableModuleDiscovery: false,
-      enableHealthChecks: false,
+        // Feature Flags
+        enableModuleDiscovery: env.ENABLE_MODULE_DISCOVERY === 'true',
+        enableHealthChecks: env.ENABLE_HEALTH_CHECKS === 'true',
 
-      // Logging
-      logLevel: 'info',
-    };
+        // Logging
+        logLevel: (env.LOG_LEVEL || 'info') as EnvironmentConfig['logLevel'],
+      };
+    } else {
+      // Runtime environment - use hardcoded values
+      this.config = {
+        // Application
+        nodeEnv: 'development',
+        port: 3002,
+        isDevelopment: true,
+        isProduction: false,
+        isTest: false,
+
+        // API Configuration
+        apiUrl: '/api',
+        apiTimeout: 30000,
+
+        // Module Federation
+        remoteModulesDiscoveryUrl: '/api/federation/modules',
+
+        // Asset Configuration
+        assetPrefix: '/',
+
+        // Feature Flags
+        enableModuleDiscovery: false,
+        enableHealthChecks: false,
+
+        // Logging
+        logLevel: 'info',
+      };
+    }
   }
 
   public get(): EnvironmentConfig {
