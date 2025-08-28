@@ -22,6 +22,7 @@ public class DevController : ControllerBase
     private readonly IConnectionMultiplexer _redis;
     private readonly ILogger<DevController> _logger;
     private readonly IHostEnvironment _environment;
+    private readonly IServiceProvider _serviceProvider;
 
     public DevController(
         PlatformDbContext dbContext,
@@ -29,7 +30,8 @@ public class DevController : ControllerBase
         IHttpClientFactory httpClientFactory,
         IConnectionMultiplexer redis,
         ILogger<DevController> logger,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        IServiceProvider serviceProvider)
     {
         _dbContext = dbContext;
         _configuration = configuration;
@@ -37,6 +39,7 @@ public class DevController : ControllerBase
         _redis = redis;
         _logger = logger;
         _environment = environment;
+        _serviceProvider = serviceProvider;
     }
 
     [HttpGet("health/all")]
@@ -340,7 +343,7 @@ public class DevController : ControllerBase
                 if (request.Seed)
                 {
                     // Seed platform data
-                    await DatabaseSeeder.SeedAsync(_dbContext);
+                    await DatabaseSeeder.InitializeDatabaseAsync(_serviceProvider, _environment);
                 }
                 
                 databases.Add("platformdb");

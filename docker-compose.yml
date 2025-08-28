@@ -12,7 +12,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres-platform-data:/var/lib/postgresql/data
-      - ./docker/sql/platform:/docker-entrypoint-initdb.d:ro
+      # SQL init scripts removed - using EF migrations instead
+      # - ./docker/sql/platform:/docker-entrypoint-initdb.d:ro
       - ./docker/scripts/wait-for-it.sh:/usr/local/bin/wait-for-it.sh:ro
     networks:
       - platform-network
@@ -37,7 +38,8 @@ services:
       - "5433:5432"
     volumes:
       - postgres-auth-data:/var/lib/postgresql/data
-      - ./docker/sql/auth:/docker-entrypoint-initdb.d:ro
+      # SQL init scripts removed - using EF migrations instead
+      # - ./docker/sql/auth:/docker-entrypoint-initdb.d:ro
       - ./docker/scripts/wait-for-it.sh:/usr/local/bin/wait-for-it.sh:ro
     networks:
       - platform-network

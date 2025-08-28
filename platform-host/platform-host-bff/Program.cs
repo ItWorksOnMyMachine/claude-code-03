@@ -204,35 +204,37 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseCors("DevelopmentPolicy");
     
-    // Seed database in development (skip in Testing environment)
+    // Initialize database (skip in Testing environment)
     if (app.Environment.EnvironmentName != "Testing")
     {
-        using (var scope = app.Services.CreateScope())
+        try
         {
-            var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            DbContextExtensions.HostingEnvironment = app.Environment;
-            await DatabaseSeeder.SeedAsync(context);
-            
-            // Seed platform tenant
-            await PlatformBff.Data.SeedData.PlatformTenantSeeder.SeedAsync(context);
-            
-            // In development, make the test admin user a platform admin
-            // This is the user from auth service with sub "e4ee8e51-0279-4c19-8f36-8f7b616e9f09"
-            await PlatformBff.Data.SeedData.PlatformTenantSeeder.AssignPlatformAdminAsync(
-                context, 
-                "e4ee8e51-0279-4c19-8f36-8f7b616e9f09", // admin user from auth service
-                "admin@platform.local"
-            );
+            await DatabaseSeeder.InitializeDatabaseAsync(app.Services, app.Environment);
+        }
+        catch (Exception ex)
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Failed to initialize database");
+            if (app.Environment.IsDevelopment())
+            {
+                throw; // Fail fast in development
+            }
+            // In production, log but continue - database might be handled externally
         }
     }
 }
 else if (app.Environment.EnvironmentName != "Testing")
 {
-    // In production, still need to ensure platform tenant exists (skip in Testing)
-    using (var scope = app.Services.CreateScope())
+    // In production, ensure database is initialized
+    try
     {
-        var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        await PlatformBff.Data.SeedData.PlatformTenantSeeder.SeedAsync(context);
+        await DatabaseSeeder.InitializeDatabaseAsync(app.Services, app.Environment);
+    }
+    catch (Exception ex)
+    {
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Failed to initialize database");
+        // In production, log but continue - database might be handled externally
     }
 }
 

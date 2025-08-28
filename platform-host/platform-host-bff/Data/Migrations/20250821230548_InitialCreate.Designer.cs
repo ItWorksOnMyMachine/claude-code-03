@@ -9,7 +9,7 @@ using PlatformBff.Data;
 
 #nullable disable
 
-namespace PlatformBff.Migrations
+namespace PlatformBff.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
     [Migration("20250821230548_InitialCreate")]

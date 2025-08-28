@@ -139,22 +139,35 @@ public static class DatabaseSeeder
                 {
                     ClientId = "platform-bff",
                     ClientName = "Platform BFF",
-                    ClientSecrets = { new Secret("development-secret".Sha256()) },
+                    ClientSecrets = { new Secret("DevClientSecret123!".Sha256()) },
                     
                     AllowedGrantTypes = GrantTypes.Code,
                     RequirePkce = true,
                     RequireClientSecret = true,
+                    RequireConsent = false,
                     
-                    RedirectUris = { "http://localhost:5000/signin-oidc" },
-                    PostLogoutRedirectUris = { "http://localhost:5000/signout-callback-oidc" },
-                    AllowedCorsOrigins = { "http://localhost:5000" },
+                    RedirectUris = { 
+                        "http://localhost:5000/signin-oidc",
+                        "http://localhost:5000/callback",
+                        "https://localhost:5001/signin-oidc"
+                    },
+                    PostLogoutRedirectUris = { 
+                        "http://localhost:5000/signout-callback-oidc",
+                        "http://localhost:5000/",
+                        "https://localhost:5001/signout-callback-oidc"
+                    },
+                    AllowedCorsOrigins = { 
+                        "http://localhost:5000",
+                        "https://localhost:5001"
+                    },
                     
                     AllowedScopes = new List<string>
                     {
                         IdentityServerConstants.StandardScopes.OpenId,
                         IdentityServerConstants.StandardScopes.Profile,
                         IdentityServerConstants.StandardScopes.Email,
-                        "platform-api"
+                        "offline_access",
+                        "platform.api"
                     },
                     
                     AllowOfflineAccess = true,
@@ -164,6 +177,52 @@ public static class DatabaseSeeder
                     
                     AccessTokenLifetime = 3600, // 1 hour
                     IdentityTokenLifetime = 3600, // 1 hour
+                    AllowAccessTokensViaBrowser = false
+                },
+                
+                // Platform Frontend Client (SPA)
+                new Client
+                {
+                    ClientId = "platform-frontend",
+                    ClientName = "Platform Frontend",
+                    RequireClientSecret = false,
+                    
+                    AllowedGrantTypes = GrantTypes.Code,
+                    RequirePkce = true,
+                    RequireConsent = false,
+                    
+                    RedirectUris = { 
+                        "http://localhost:3002/callback",
+                        "http://localhost:3002/silent-renew",
+                        "http://localhost:3002/",
+                        "http://localhost:3006/callback",
+                        "http://localhost:3006/silent-renew",
+                        "http://localhost:3006/"
+                    },
+                    PostLogoutRedirectUris = { 
+                        "http://localhost:3002/",
+                        "http://localhost:3002/logout",
+                        "http://localhost:3006/",
+                        "http://localhost:3006/logout"
+                    },
+                    AllowedCorsOrigins = { 
+                        "http://localhost:3002",
+                        "http://localhost:3000",
+                        "http://localhost:3006"
+                    },
+                    
+                    AllowedScopes = new List<string>
+                    {
+                        IdentityServerConstants.StandardScopes.OpenId,
+                        IdentityServerConstants.StandardScopes.Profile,
+                        IdentityServerConstants.StandardScopes.Email,
+                        "offline_access",
+                        "platform.api"
+                    },
+                    
+                    AllowOfflineAccess = true,
+                    AllowAccessTokensViaBrowser = true,
+                    AccessTokenLifetime = 900, // 15 minutes
                 },
                 
                 // Development test client
@@ -171,14 +230,28 @@ public static class DatabaseSeeder
                 {
                     ClientId = "test-client",
                     ClientName = "Test Client",
-                    ClientSecrets = { new Secret("test-secret".Sha256()) },
+                    ClientSecrets = { new Secret("TestSecret123!".Sha256()) },
                     
-                    AllowedGrantTypes = GrantTypes.ClientCredentials,
+                    AllowedGrantTypes = GrantTypes.ResourceOwnerPasswordAndClientCredentials,
+                    RequireConsent = false,
+                    RequirePkce = false,
+                    
+                    RedirectUris = { 
+                        "http://localhost/callback",
+                        "https://localhost/callback"
+                    },
                     
                     AllowedScopes = new List<string>
                     {
-                        "platform-api"
-                    }
+                        IdentityServerConstants.StandardScopes.OpenId,
+                        IdentityServerConstants.StandardScopes.Profile,
+                        IdentityServerConstants.StandardScopes.Email,
+                        "offline_access",
+                        "platform.api"
+                    },
+                    
+                    AllowOfflineAccess = true,
+                    AccessTokenLifetime = 3600
                 }
             };
 
@@ -197,7 +270,9 @@ public static class DatabaseSeeder
             {
                 new IdentityResources.OpenId(),
                 new IdentityResources.Profile(),
-                new IdentityResources.Email()
+                new IdentityResources.Email(),
+                new IdentityResources.Phone(),
+                new IdentityResources.Address()
             };
 
             foreach (var resource in identityResources)
@@ -213,7 +288,10 @@ public static class DatabaseSeeder
         {
             var apiScopes = new List<ApiScope>
             {
-                new ApiScope("platform-api", "Platform API", new List<string> { JwtClaimTypes.Name, JwtClaimTypes.Email })
+                new ApiScope("platform.api", "Platform API", new[] { "tenant_id", "role", "permission" }),
+                new ApiScope("platform.read", "Platform Read", new[] { "tenant_id" }),
+                new ApiScope("platform.write", "Platform Write", new[] { "tenant_id" }),
+                new ApiScope("platform.admin", "Platform Admin", new[] { "tenant_id", "role" })
             };
 
             foreach (var scope in apiScopes)
@@ -229,10 +307,11 @@ public static class DatabaseSeeder
         {
             var apiResources = new List<ApiResource>
             {
-                new ApiResource("platform-api-resource", "Platform API Resource")
+                new ApiResource("platform", "Platform API")
                 {
-                    Scopes = { "platform-api" },
-                    UserClaims = { JwtClaimTypes.Name, JwtClaimTypes.Email }
+                    Description = "Main Platform API resource",
+                    Scopes = { "platform.api", "platform.read", "platform.write", "platform.admin" },
+                    UserClaims = { "tenant_id", "role", "permission", JwtClaimTypes.Name, JwtClaimTypes.Email }
                 }
             };
 

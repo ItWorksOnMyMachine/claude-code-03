@@ -74,7 +74,7 @@ try {
     }
     
     Write-Host "`nStarting fresh database containers..." -ForegroundColor Yellow
-    docker-compose up -d postgres-platform postgres-auth redis
+    docker-compose up -d platform-postgres auth-postgres redis
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✓ Database containers started" -ForegroundColor Green
@@ -97,7 +97,7 @@ try {
         # Check platform database
         if (-not $platformReady) {
             try {
-                docker exec postgres-platform pg_isready -U platform_user -d platform_db 2>$null | Out-Null
+                docker exec platform-postgres pg_isready -U platformuser -d platformdb 2>$null | Out-Null
                 if ($LASTEXITCODE -eq 0) {
                     $platformReady = $true
                     Write-Host "    ✓ Platform database ready" -ForegroundColor Green
@@ -108,7 +108,7 @@ try {
         # Check auth database
         if (-not $authReady) {
             try {
-                docker exec postgres-auth pg_isready -U auth_user -d auth_db 2>$null | Out-Null
+                docker exec auth-postgres pg_isready -U authuser -d authdb 2>$null | Out-Null
                 if ($LASTEXITCODE -eq 0) {
                     $authReady = $true
                     Write-Host "    ✓ Auth database ready" -ForegroundColor Green
@@ -159,8 +159,8 @@ try {
     } else {
         Write-Host "✗ Databases failed to initialize within timeout period" -ForegroundColor Red
         Write-Host "Check docker logs for more information:" -ForegroundColor Yellow
-        Write-Host "  docker logs postgres-platform" -ForegroundColor Gray
-        Write-Host "  docker logs postgres-auth" -ForegroundColor Gray
+        Write-Host "  docker logs platform-postgres" -ForegroundColor Gray
+        Write-Host "  docker logs auth-postgres" -ForegroundColor Gray
         exit 1
     }
 } finally {

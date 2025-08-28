@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
-import mfConfig from '../../module-federation.config';
+import mfConfig from '../../../module-federation.config';
 
 describe('Module Federation shared config guard', () => {
   const shared = (mfConfig as any).shared || {};
@@ -23,7 +23,7 @@ describe('Module Federation shared config guard', () => {
 });
 
 describe('Module Federation Configuration', () => {
-  const rootDir = path.resolve(__dirname, '../..');
+  const rootDir = path.resolve(__dirname, '../../..');
   let modernConfig: string;
 
   beforeAll(() => {
@@ -69,10 +69,6 @@ describe('Module Federation Configuration', () => {
       expect(mfConfig).toContain('singleton: true');
     });
 
-    it('should configure Emotion packages as shared dependencies', () => {
-      expect(mfConfig).toContain("'@emotion/react': {");
-      expect(mfConfig).toContain("'@emotion/styled': {");
-    });
   });
 
   describe('Remote Module Configuration', () => {

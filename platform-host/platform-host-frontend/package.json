@@ -12,6 +12,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:mf": "jest --config jest.node.config.js",
+    "test:all": "npm run test && npm run test:mf",
     "type-check": "tsc --noEmit",
     "build:analyze": "modern build --analyze",
     "build:prod": "NODE_ENV=production modern build",

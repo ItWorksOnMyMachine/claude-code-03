@@ -8,7 +8,7 @@ using PlatformBff.Data;
 
 #nullable disable
 
-namespace PlatformBff.Migrations
+namespace PlatformBff.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
     partial class PlatformDbContextModelSnapshot : ModelSnapshot
