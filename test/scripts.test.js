@@ -62,13 +62,18 @@ describe("Developer Scripts", () => {
         describe("start-deps.ps1", () => {
             it("should start only dependency services", async () => {
                 const scriptContent = await fs.readFile(path.join(scriptsDir, "start-deps.ps1"), "utf8");
-                expect(scriptContent).toMatch(/docker-compose\s+up.*postgres.*redis/i);
+                // Check that the script adds postgres-platform, postgres-auth, and redis to dockerArgs
+                expect(scriptContent).toContain('$dockerArgs += "postgres-platform"');
+                expect(scriptContent).toContain('$dockerArgs += "postgres-auth"');
+                expect(scriptContent).toContain('$dockerArgs += "redis"');
+                expect(scriptContent).toContain('docker-compose @dockerArgs');
             });
 
             it("should not start application services", async () => {
                 const scriptContent = await fs.readFile(path.join(scriptsDir, "start-deps.ps1"), "utf8");
-                expect(scriptContent).not.toContain("platform-host-bff");
-                expect(scriptContent).not.toContain("auth-service");
+                // Check that application services are not added to dockerArgs
+                expect(scriptContent).not.toContain('$dockerArgs += "platform-host-bff"');
+                expect(scriptContent).not.toContain('$dockerArgs += "auth-service"');
             });
         });
 
