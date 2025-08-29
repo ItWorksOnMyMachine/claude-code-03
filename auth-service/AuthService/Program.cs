@@ -234,16 +234,6 @@ builder.Services.AddAuthorization(options =>
 // Add services to the container
 builder.Services.AddControllers();
 
-// Configure antiforgery for testing environment
-if (builder.Environment.IsEnvironment("Testing"))
-{
-    builder.Services.AddAntiforgery(options =>
-    {
-        options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.None;
-        options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
-    });
-}
-
 // Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -311,7 +301,7 @@ builder.Services.AddControllersWithViews(options =>
 });
 builder.Services.AddRazorPages();
 
-// Configure anti-forgery options (skip for Testing environment as it's already configured above)
+// Configure anti-forgery options
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddAntiforgery(options =>
@@ -319,8 +309,17 @@ if (!builder.Environment.IsEnvironment("Testing"))
         options.HeaderName = "X-CSRF-TOKEN";
         options.Cookie.Name = "X-CSRF-TOKEN";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-        options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? Microsoft.AspNetCore.Http.CookieSecurePolicy.None : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? Microsoft.AspNetCore.Http.SameSiteMode.None : Microsoft.AspNetCore.Http.SameSiteMode.Strict;
+    });
+}
+// Configure antiforgery for testing environment
+else
+{
+    builder.Services.AddAntiforgery(options =>
+    {
+        options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.None;
+        options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
     });
 }
 
