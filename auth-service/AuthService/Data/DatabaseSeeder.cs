@@ -1,11 +1,11 @@
 using AuthService.Data.Entities;
+using Duende.IdentityModel;
 using Duende.IdentityServer;
 using Duende.IdentityServer.EntityFramework.DbContexts;
 using Duende.IdentityServer.EntityFramework.Mappers;
 using Duende.IdentityServer.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using IdentityModel;
 
 namespace AuthService.Data;
 
@@ -146,19 +146,24 @@ public static class DatabaseSeeder
                     RequireClientSecret = true,
                     RequireConsent = false,
                     
-                    RedirectUris = { 
+                    RedirectUris = {
                         "http://localhost:5000/signin-oidc",
                         "http://localhost:5000/callback",
-                        "https://localhost:5001/signin-oidc"
+                        "https://localhost:5001/signin-oidc",
+                        "http://localhost:5086/signin-oidc",
+                        "http://localhost:5086/callback",
                     },
-                    PostLogoutRedirectUris = { 
+                    PostLogoutRedirectUris = {
                         "http://localhost:5000/signout-callback-oidc",
                         "http://localhost:5000/",
-                        "https://localhost:5001/signout-callback-oidc"
+                        "https://localhost:5001/signout-callback-oidc",
+                        "http://localhost:5086/signout-callback-oidc",
+                        "http://localhost:5086/",
                     },
-                    AllowedCorsOrigins = { 
+                    AllowedCorsOrigins = {
                         "http://localhost:5000",
-                        "https://localhost:5001"
+                        "https://localhost:5001",
+                        "http://localhost:5086",
                     },
                     
                     AllowedScopes = new List<string>

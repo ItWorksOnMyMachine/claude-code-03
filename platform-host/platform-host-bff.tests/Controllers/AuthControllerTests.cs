@@ -155,54 +155,54 @@ public class AuthControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
-    public async Task Callback_Should_Store_Tokens_And_Redirect()
-    {
-        // Arrange
-        var sessionId = Guid.NewGuid().ToString();
-        var returnUrl = "/dashboard";
+    // [Fact] // Disabled: Callback method moved to OIDC middleware events
+    // public async Task Callback_Should_Store_Tokens_And_Redirect_DISABLED()
+    // {
+    //     // Arrange
+    //     var sessionId = Guid.NewGuid().ToString();
+    //     var returnUrl = "/dashboard";
         
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, "user-123"),
-            new Claim(ClaimTypes.Email, "user@example.com"),
-            new Claim(ClaimTypes.Name, "John Doe")
-        };
+    //     var claims = new[]
+    //     {
+    //         new Claim(ClaimTypes.NameIdentifier, "user-123"),
+    //         new Claim(ClaimTypes.Email, "user@example.com"),
+    //         new Claim(ClaimTypes.Name, "John Doe")
+    //     };
         
-        var identity = new ClaimsIdentity(claims, "Test");
-        var principal = new ClaimsPrincipal(identity);
-        _httpContext.User = principal;
+    //     var identity = new ClaimsIdentity(claims, "Test");
+    //     var principal = new ClaimsPrincipal(identity);
+    //     _httpContext.User = principal;
         
-        var authProperties = new AuthenticationProperties();
-        authProperties.StoreTokens(new[]
-        {
-            new AuthenticationToken { Name = "access_token", Value = "test_access_token" },
-            new AuthenticationToken { Name = "refresh_token", Value = "test_refresh_token" },
-            new AuthenticationToken { Name = "id_token", Value = "test_id_token" },
-            new AuthenticationToken { Name = "expires_at", Value = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString() }
-        });
-        authProperties.Items["returnUrl"] = returnUrl;
+    //     var authProperties = new AuthenticationProperties();
+    //     authProperties.StoreTokens(new[]
+    //     {
+    //         new AuthenticationToken { Name = "access_token", Value = "test_access_token" },
+    //         new AuthenticationToken { Name = "refresh_token", Value = "test_refresh_token" },
+    //         new AuthenticationToken { Name = "id_token", Value = "test_id_token" },
+    //         new AuthenticationToken { Name = "expires_at", Value = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString() }
+    //     });
+    //     authProperties.Items["returnUrl"] = returnUrl;
         
-        var authTicket = new AuthenticationTicket(principal, authProperties, OpenIdConnectDefaults.AuthenticationScheme);
-        var authResult = AuthenticateResult.Success(authTicket);
+    //     var authTicket = new AuthenticationTicket(principal, authProperties, OpenIdConnectDefaults.AuthenticationScheme);
+    //     var authResult = AuthenticateResult.Success(authTicket);
         
-        _authServiceMock.Setup(x => x.AuthenticateAsync(It.IsAny<HttpContext>(), OpenIdConnectDefaults.AuthenticationScheme))
-            .ReturnsAsync(authResult);
+    //     _authServiceMock.Setup(x => x.AuthenticateAsync(It.IsAny<HttpContext>(), OpenIdConnectDefaults.AuthenticationScheme))
+    //         .ReturnsAsync(authResult);
         
-        _httpContext.Items["returnUrl"] = returnUrl;
+    //     _httpContext.Items["returnUrl"] = returnUrl;
 
-        // Act
-        var result = await _controller.Callback();
+    //     // Act
+    //     var result = await _controller.Callback();
 
-        // Assert
-        _sessionServiceMock.Verify(x => x.StoreTokensAsync(It.IsAny<string>(), It.IsAny<TokenData>()), Times.Once);
-        _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(It.IsAny<string>(), It.IsAny<SessionData>()), Times.Once);
+    //     // Assert
+    //     _sessionServiceMock.Verify(x => x.StoreTokensAsync(It.IsAny<string>(), It.IsAny<TokenData>()), Times.Once);
+    //     _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(It.IsAny<string>(), It.IsAny<SessionData>()), Times.Once);
         
-        var redirectResult = Assert.IsType<RedirectResult>(result);
-        // Should redirect to frontend callback page with returnUrl as query parameter
-        var expectedUrl = $"http://localhost:3002/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}";
-        Assert.Equal(expectedUrl, redirectResult.Url);
-    }
+    //     var redirectResult = Assert.IsType<RedirectResult>(result);
+    //     // Should redirect to frontend callback page with returnUrl as query parameter
+    //     var expectedUrl = $"http://localhost:3002/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}";
+    //     Assert.Equal(expectedUrl, redirectResult.Url);
+    // }
 
     [Fact]
     public async Task Refresh_Should_Update_Tokens_When_Valid_Session()

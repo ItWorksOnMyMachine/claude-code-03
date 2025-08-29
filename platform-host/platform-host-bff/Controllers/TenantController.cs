@@ -181,7 +181,7 @@ public class TenantController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning("User {UserId} attempted to select unauthorized tenant {TenantId}", 
+            _logger.LogWarning(ex, "User {UserId} attempted to select unauthorized tenant {TenantId}", 
                 sessionData.UserId, request.TenantId);
             
             return Forbid();

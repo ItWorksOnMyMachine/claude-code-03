@@ -47,7 +47,7 @@ public class AuthController : ControllerBase
         {
             var properties = new AuthenticationProperties
             {
-                RedirectUri = "/api/auth/callback",
+                RedirectUri = "/signin-oidc",
                 Items =
                 {
                     ["returnUrl"] = returnUrl
@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
         // For browser requests, return Challenge
         var challengeProperties = new AuthenticationProperties
         {
-            RedirectUri = "/api/auth/callback",
+            RedirectUri = "/signin-oidc",
             Items =
             {
                 ["returnUrl"] = returnUrl
@@ -83,7 +83,7 @@ public class AuthController : ControllerBase
     {
         var properties = new AuthenticationProperties
         {
-            RedirectUri = "/api/auth/callback",
+            RedirectUri = "/signin-oidc",
             Items =
             {
                 ["returnUrl"] = returnUrl
@@ -120,10 +120,10 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Handle OIDC callback after authentication
+    /// Handle OIDC callback after authentication - DISABLED: Using OIDC middleware instead
     /// </summary>
-    [HttpGet("callback")]
-    public async Task<IActionResult> Callback()
+    // [HttpGet("callback")]  // Commented out to prevent conflicts with OIDC middleware
+    private async Task<IActionResult> Callback()
     {
         try
         {
@@ -330,5 +330,18 @@ public class AuthController : ControllerBase
     public IActionResult SignOutCallback()
     {
         return Redirect("/");
+    }
+
+    /// <summary>
+    /// Handle authentication errors
+    /// </summary>
+    [HttpGet("error")]
+    public IActionResult Error([FromQuery] string? message = null)
+    {
+        _logger.LogWarning("Authentication error: {Message}", message);
+        
+        // Instead of showing error, redirect to frontend with error parameter
+        var frontendUrl = _configuration?["Frontend:Url"] ?? "http://localhost:3002";
+        return Redirect($"{frontendUrl}/login?error=auth_failed&details={Uri.EscapeDataString(message ?? "")}");
     }
 }

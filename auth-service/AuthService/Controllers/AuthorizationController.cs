@@ -3,12 +3,12 @@ using Duende.IdentityServer.Extensions;
 using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
 using Duende.IdentityServer.Validation;
-using IdentityModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AuthService.Models;
 using System.Linq;
 using System.Threading.Tasks;
+using Duende.IdentityModel;
 
 namespace AuthService.Controllers;
 

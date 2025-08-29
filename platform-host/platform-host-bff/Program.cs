@@ -54,7 +54,8 @@ if (builder.Environment.EnvironmentName != "Testing")
         var redis = ConnectionMultiplexer.Connect(redisConnection);
         builder.Services.AddDataProtection()
             .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys")
-            .SetApplicationName("PlatformBff");
+            .SetApplicationName("PlatformBff")
+            .SetDefaultKeyLifetime(TimeSpan.FromDays(90)); // Ensure keys persist long enough
     }
     else
     {
@@ -85,6 +86,8 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = "platform.session";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
 });
 
 // Add Authentication services
@@ -126,9 +129,13 @@ builder.Services.AddAuthentication(options =>
     options.ClientId = builder.Configuration["Authentication:ClientId"] ?? "platform-bff";
     options.ClientSecret = builder.Configuration["Authentication:ClientSecret"] ?? "platform-bff-secret";
     options.ResponseType = OpenIdConnectResponseType.Code;
+    options.ResponseMode = OpenIdConnectResponseMode.Query; // Use query mode instead of form_post
     options.SaveTokens = true;
     options.GetClaimsFromUserInfoEndpoint = true;
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing");
+    
+    // Explicitly set the callback path
+    options.CallbackPath = builder.Configuration["Authentication:CallbackPath"] ?? "/signin-oidc";
     
     // Scopes
     options.Scope.Clear();
@@ -145,14 +152,152 @@ builder.Services.AddAuthentication(options =>
     // Configure events
     options.Events = new OpenIdConnectEvents
     {
+        OnMessageReceived = context =>
+        {
+            // Debug state parameter - safely check both query and form
+            var state = context.Request.Query["state"].FirstOrDefault();
+            var code = context.Request.Query["code"].FirstOrDefault();
+            
+            // Only try to read form if it's a POST with proper content type
+            if (context.Request.Method == "POST" && 
+                context.Request.HasFormContentType && 
+                context.Request.Form != null)
+            {
+                state = state ?? context.Request.Form["state"].FirstOrDefault();
+                code = code ?? context.Request.Form["code"].FirstOrDefault();
+            }
+            
+            var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+            logger?.LogInformation(
+                "OIDC Callback received: Method={Method}, State={State}, Code={Code}, HasState={HasState}, Path={Path}", 
+                context.Request.Method,
+                state?.Substring(0, Math.Min(50, state?.Length ?? 0)) + "...", 
+                code?.Substring(0, Math.Min(10, code?.Length ?? 0)) + "...",
+                !string.IsNullOrEmpty(state),
+                context.Request.Path);
+                
+            // If this is a duplicate callback or missing state, handle gracefully
+            if (string.IsNullOrEmpty(state))
+            {
+                logger?.LogWarning("Callback with missing state - likely duplicate request");
+                
+                // Check if user is already authenticated - if so, redirect to frontend
+                if (context.HttpContext.User?.Identity?.IsAuthenticated == true)
+                {
+                    logger?.LogInformation("User already authenticated, redirecting to frontend");
+                    context.HandleResponse();
+                    var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "http://localhost:3002";
+                    context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl=/");
+                    return Task.CompletedTask;
+                }
+                
+                // If not authenticated and no state, something is wrong - redirect to login
+                context.HandleResponse();
+                var frontendUrl2 = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "http://localhost:3002";
+                context.Response.Redirect($"{frontendUrl2}/login?error=invalid_state");
+                return Task.CompletedTask;
+            }
+                
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            context.HttpContext.RequestServices.GetService<ILogger<Program>>()?.LogError(
+                "OIDC Authentication failed: {Error}", context.Exception?.Message);
+            return Task.CompletedTask;
+        },
         OnTokenValidated = async context =>
         {
-            // Store tokens in Redis after successful authentication
-            var sessionId = Guid.NewGuid().ToString();
-            context.Properties!.SetString("session_id", sessionId);
+            try
+            {
+                var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
+                var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+                
+                // Store tokens in Redis after successful authentication
+                var sessionId = Guid.NewGuid().ToString();
+                
+                // Extract tokens from context
+                var accessToken = context.TokenEndpointResponse?.AccessToken;
+                var refreshToken = context.TokenEndpointResponse?.RefreshToken;
+                var idToken = context.TokenEndpointResponse?.IdToken;
+                var expiresIn = context.TokenEndpointResponse?.ExpiresIn;
+                
+                logger?.LogInformation("Token validation successful, storing session {SessionId}", sessionId);
+                
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    var expiration = DateTime.UtcNow.AddSeconds(
+                        !string.IsNullOrEmpty(expiresIn) && int.TryParse(expiresIn, out var seconds) ? seconds : 3600);
+                    
+                    // Store tokens
+                    var tokenData = new PlatformBff.Models.TokenData
+                    {
+                        AccessToken = accessToken,
+                        RefreshToken = refreshToken,
+                        IdToken = idToken,
+                        ExpiresAt = expiration
+                    };
+                    
+                    await sessionService.StoreTokensAsync(sessionId, tokenData);
+                    
+                    // Extract user information
+                    var principal = context.Principal;
+                    var userId = principal?.FindFirst("sub")?.Value ?? 
+                                principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? 
+                                Guid.NewGuid().ToString();
+                    
+                    var sessionData = new PlatformBff.Models.SessionData
+                    {
+                        SessionId = sessionId,
+                        UserId = userId,
+                        Username = principal?.FindFirst("name")?.Value,
+                        Email = principal?.FindFirst("email")?.Value,
+                        ExpiresAt = expiration,
+                        Claims = principal?.Claims.ToDictionary(c => c.Type, c => c.Value) ?? new Dictionary<string, string>(),
+                        IpAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                        UserAgent = context.HttpContext.Request.Headers["User-Agent"].ToString()
+                    };
+                    
+                    await sessionService.StoreSessionDataAsync(sessionId, sessionData);
+                    
+                    // Set session cookie
+                    context.HttpContext.Response.Cookies.Append("platform.session", sessionId, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = false, // Allow HTTP in development
+                        SameSite = SameSiteMode.Lax,
+                        Expires = expiration,
+                        IsEssential = true
+                    });
+                    
+                    logger?.LogInformation("User {UserId} authenticated successfully with session {SessionId}", userId, sessionId);
+                }
+                
+                context.Properties!.SetString("session_id", sessionId);
+                
+                // Set a flag to indicate successful authentication processing
+                context.HttpContext.Items["AuthenticationProcessed"] = true;
+            }
+            catch (Exception ex)
+            {
+                var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+                logger?.LogError(ex, "Error during token validation");
+                throw;
+            }
+        },
+        OnTicketReceived = context =>
+        {
+            // After successful authentication, redirect to frontend
+            var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+            var returnUrl = context.Properties?.Items["returnUrl"] ?? "/";
             
-            // Token storage will be implemented with ISessionService
-            await Task.CompletedTask;
+            logger?.LogInformation("Authentication completed successfully, redirecting to frontend");
+            
+            var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "http://localhost:3002";
+            context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
+            context.HandleResponse();
+            
+            return Task.CompletedTask;
         },
         OnRedirectToIdentityProviderForSignOut = context =>
         {
@@ -166,7 +311,11 @@ builder.Services.AddAuthentication(options =>
         },
         OnRemoteFailure = context =>
         {
-            context.Response.Redirect("/api/auth/error?message=" + context.Failure?.Message);
+            var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+            logger?.LogError("OIDC RemoteFailure: {Error}", context.Failure?.Message);
+            
+            // Use the error endpoint which will redirect to frontend gracefully
+            context.Response.Redirect($"/api/auth/error?message={Uri.EscapeDataString(context.Failure?.Message ?? "Authentication failed")}");
             context.HandleResponse();
             return Task.CompletedTask;
         }
