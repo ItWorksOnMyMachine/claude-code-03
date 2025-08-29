@@ -28,8 +28,8 @@ export default defineConfig({
         '/api': {
           target: 'http://localhost:5086',
           changeOrigin: true,
-          ws: true, // Enable WebSocket proxying
-          logLevel: 'debug', // Debug logging in development
+          secure: false,
+          logLevel: 'debug',
         },
       },
     },

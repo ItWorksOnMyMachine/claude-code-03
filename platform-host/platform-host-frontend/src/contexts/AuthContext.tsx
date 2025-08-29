@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { API_BASE_URL } from '../config/environment';
 
 interface User {
   id: string;
@@ -34,8 +35,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = '/api';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credentials: 'include', // Include cookies
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
 
@@ -79,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ returnUrl: returnUrl || window.location.pathname }),
       });
@@ -105,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
 
@@ -129,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
 

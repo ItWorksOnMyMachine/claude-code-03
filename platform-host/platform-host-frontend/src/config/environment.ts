@@ -50,7 +50,7 @@ class Environment {
         isTest: env.NODE_ENV === 'test',
 
         // API Configuration
-        apiUrl: env.API_URL || (env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000'),
+        apiUrl: env.API_URL || (env.NODE_ENV === 'production' ? '/api' : '/api'),
         apiTimeout: parseInt(env.API_TIMEOUT || '30000', 10),
 
         // Module Federation
@@ -114,3 +114,27 @@ class Environment {
 // Export singleton instance
 export const environment = new Environment();
 export default environment;
+
+/**
+ * Get API base URL based on environment
+ * In development: uses '/api' (will hit proxy)
+ * In production: uses environment variable or falls back to relative '/api'
+ */
+export const getApiBaseUrl = (): string => {
+  const config = environment.get();
+  
+  // Use environment variable if set
+  if (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // In development, directly call the BFF since proxy isn't working
+  if (config.isDevelopment) {
+    return 'http://localhost:5086/api';
+  }
+  
+  // In production, use relative path
+  return config.apiUrl;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
