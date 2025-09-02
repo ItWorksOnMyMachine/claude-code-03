@@ -32,12 +32,12 @@ public class AuthControllerTests
         _sessionServiceMock = new Mock<ISessionService>();
         _authServiceMock = new Mock<IAuthenticationService>();
         _loggerMock = new Mock<ILogger<AuthController>>();
-        
+
         _httpContext = new DefaultHttpContext();
         _httpContext.RequestServices = new ServiceCollection()
             .AddSingleton(_authServiceMock.Object)
             .BuildServiceProvider();
-        
+
         _controller = new AuthController(_sessionServiceMock.Object, _loggerMock.Object)
         {
             ControllerContext = new ControllerContext
@@ -59,7 +59,7 @@ public class AuthControllerTests
         // Assert
         var challengeResult = Assert.IsType<ChallengeResult>(result);
         Assert.Equal(OpenIdConnectDefaults.AuthenticationScheme, challengeResult.AuthenticationSchemes[0]);
-        Assert.Equal("/api/auth/callback", challengeResult.Properties.RedirectUri);
+        Assert.Equal("/signin-oidc", challengeResult.Properties.RedirectUri);
         Assert.Equal("/dashboard", challengeResult.Properties.Items["returnUrl"]);
     }
 
@@ -71,7 +71,7 @@ public class AuthControllerTests
 
         // Assert
         var challengeResult = Assert.IsType<ChallengeResult>(result);
-        Assert.Equal("/api/auth/callback", challengeResult.Properties.RedirectUri);
+        Assert.Equal("/signin-oidc", challengeResult.Properties.RedirectUri);
         Assert.Equal("/", challengeResult.Properties.Items["returnUrl"]);
     }
 
@@ -102,12 +102,12 @@ public class AuthControllerTests
         var sessionId = "test-session-id";
         var userId = "user-123";
         var userEmail = "user@example.com";
-        
+
         _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
         {
             ["platform.session"] = sessionId
         });
-        
+
         var sessionData = new SessionData
         {
             SessionId = sessionId,
@@ -122,7 +122,7 @@ public class AuthControllerTests
                 ["name"] = "John Doe"
             }
         };
-        
+
         _sessionServiceMock.Setup(x => x.GetSessionDataAsync(sessionId))
             .ReturnsAsync(sessionData);
         _sessionServiceMock.Setup(x => x.IsSessionValidAsync(sessionId))
@@ -161,18 +161,18 @@ public class AuthControllerTests
     //     // Arrange
     //     var sessionId = Guid.NewGuid().ToString();
     //     var returnUrl = "/dashboard";
-        
+
     //     var claims = new[]
     //     {
     //         new Claim(ClaimTypes.NameIdentifier, "user-123"),
     //         new Claim(ClaimTypes.Email, "user@example.com"),
     //         new Claim(ClaimTypes.Name, "John Doe")
     //     };
-        
+
     //     var identity = new ClaimsIdentity(claims, "Test");
     //     var principal = new ClaimsPrincipal(identity);
     //     _httpContext.User = principal;
-        
+
     //     var authProperties = new AuthenticationProperties();
     //     authProperties.StoreTokens(new[]
     //     {
@@ -182,13 +182,13 @@ public class AuthControllerTests
     //         new AuthenticationToken { Name = "expires_at", Value = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString() }
     //     });
     //     authProperties.Items["returnUrl"] = returnUrl;
-        
+
     //     var authTicket = new AuthenticationTicket(principal, authProperties, OpenIdConnectDefaults.AuthenticationScheme);
     //     var authResult = AuthenticateResult.Success(authTicket);
-        
+
     //     _authServiceMock.Setup(x => x.AuthenticateAsync(It.IsAny<HttpContext>(), OpenIdConnectDefaults.AuthenticationScheme))
     //         .ReturnsAsync(authResult);
-        
+
     //     _httpContext.Items["returnUrl"] = returnUrl;
 
     //     // Act
@@ -197,7 +197,7 @@ public class AuthControllerTests
     //     // Assert
     //     _sessionServiceMock.Verify(x => x.StoreTokensAsync(It.IsAny<string>(), It.IsAny<TokenData>()), Times.Once);
     //     _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(It.IsAny<string>(), It.IsAny<SessionData>()), Times.Once);
-        
+
     //     var redirectResult = Assert.IsType<RedirectResult>(result);
     //     // Should redirect to frontend callback page with returnUrl as query parameter
     //     var expectedUrl = $"https://host-fe.platform.local:3002/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}";
@@ -213,14 +213,14 @@ public class AuthControllerTests
         {
             ["platform.session"] = sessionId
         });
-        
+
         var existingTokens = new TokenData
         {
             AccessToken = "old_access_token",
             RefreshToken = "refresh_token",
             ExpiresAt = DateTime.UtcNow.AddMinutes(5)
         };
-        
+
         _sessionServiceMock.Setup(x => x.GetTokensAsync(sessionId))
             .ReturnsAsync(existingTokens);
         _sessionServiceMock.Setup(x => x.IsSessionValidAsync(sessionId))

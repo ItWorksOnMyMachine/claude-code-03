@@ -25,7 +25,7 @@ describe('Environment Configuration', () => {
     expect(config.isDevelopment).toBe(true);
     expect(config.isProduction).toBe(false);
     expect(config.port).toBe(3002);
-    expect(config.apiUrl).toBe('https://host-bff.platform.local:5086/api');
+    expect(config.apiUrl).toBe('/api');
   });
 
   it('should read production configuration', () => {

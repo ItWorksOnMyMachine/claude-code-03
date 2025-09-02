@@ -93,8 +93,10 @@ public static class IdentityServerConfig
             ClientSecrets = 
             {
                 new Secret(isDevelopment 
-                    ? "development-secret".Sha256() 
-                    : "production-secret-should-be-replaced".Sha256())
+                    ? "platform-bff-secret".Sha256() 
+                    : "production-secret-should-be-replaced".Sha256()),
+                // Also add test-secret for testing environment
+                new Secret("test-secret".Sha256())
             },
             
             // Token configuration (as per spec)
@@ -128,6 +130,7 @@ public static class IdentityServerConfig
                 ? new[] 
                 { 
                     "https://localhost:5000/signin-oidc",
+                    "http://localhost:5000/signin-oidc", // For testing without HTTPS
                     "https://localhost:5001/signin-oidc",
                     "https://host-fe.platform.local:3002/auth/callback" // Frontend callback
                 }
@@ -141,6 +144,7 @@ public static class IdentityServerConfig
                 ? new[] 
                 { 
                     "http://localhost:5000/signout-callback-oidc",
+                    "https://localhost:5000/signout-callback-oidc", // For HTTPS testing
                     "https://localhost:5001/signout-callback-oidc",
                     "https://host-fe.platform.local:3002/"
                 }

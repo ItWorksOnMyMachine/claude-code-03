@@ -10,8 +10,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Xunit;
+using Xunit.Abstractions;
+using AuthService.Tests.TestInfrastructure;
 
 namespace AuthService.Tests.Integration;
 
@@ -19,12 +22,25 @@ public class OidcFlowTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
+    private readonly ITestOutputHelper _output;
 
-    public OidcFlowTests(WebApplicationFactory<Program> factory)
+    public OidcFlowTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
     {
+        _output = output;
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
+            
+            // Configure logging to capture server errors
+            builder.ConfigureLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.SetMinimumLevel(LogLevel.Trace);
+                logging.AddFilter("Microsoft.AspNetCore.DataProtection", LogLevel.Warning);
+                logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Information);
+                logging.AddProvider(new XunitHostLoggerProvider());
+            });
+            
             builder.ConfigureServices(services =>
             {
                 // Configure antiforgery for testing environment to work with HTTP
@@ -33,12 +49,20 @@ public class OidcFlowTests : IClassFixture<WebApplicationFactory<Program>>
                     options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.None;
                     options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
                 });
+                
+                // Configure IdentityServer to use Identity's cookie for authentication
+                services.Configure<Duende.IdentityServer.Configuration.IdentityServerOptions>(options =>
+                {
+                    options.Authentication.CookieAuthenticationScheme = "Identity.Application";
+                    options.Authentication.RequireAuthenticatedUserForSignOutMessage = false;
+                });
             });
         });
         
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
-            AllowAutoRedirect = false
+            AllowAutoRedirect = false,
+            HandleCookies = true
         });
     }
 
@@ -86,6 +110,10 @@ public class OidcFlowTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task Authorization_Endpoint_Should_Redirect_To_Login_For_Unauthenticated_User()
     {
+        // Bind output helper to sink (early so startup logs get flushed)
+        XunitHostLogSink.SetTestOutput(_output);
+        XunitHostLogSink.FlushTo(_output);
+
         // Arrange
         var authorizeUrl = "/connect/authorize?" +
             "client_id=platform-bff&" +
@@ -96,11 +124,44 @@ public class OidcFlowTests : IClassFixture<WebApplicationFactory<Program>>
             "code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&" +
             "code_challenge_method=S256";
         
+        _output.WriteLine($"Testing authorization URL: {authorizeUrl}");
+        
         // Act
         var response = await _client.GetAsync(authorizeUrl);
+        XunitHostLogSink.FlushTo(_output);
+        
+        // Debug: Output comprehensive response information
+        _output.WriteLine($"Response Status Code: {response.StatusCode} ({(int)response.StatusCode})");
+        _output.WriteLine($"Response Headers:");
+        foreach (var header in response.Headers)
+        {
+            _output.WriteLine($"  {header.Key}: {string.Join(", ", header.Value)}");
+        }
+        
+        if (response.Headers.Location != null)
+        {
+            _output.WriteLine($"Location Header: {response.Headers.Location}");
+            _output.WriteLine($"Location LocalPath: {response.Headers.Location.LocalPath}");
+            _output.WriteLine($"Location Query: {response.Headers.Location.Query}");
+        }
+        else
+        {
+            _output.WriteLine("Location Header: null");
+        }
+
+        // If we get a server error, read the response body for details
+        if (response.StatusCode == HttpStatusCode.InternalServerError)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Server Error Response Body: {errorContent}");
+            
+            // Also flush any remaining logs
+            XunitHostLogSink.FlushTo(_output);
+        }
         
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect, 
+            $"Expected redirect but got {response.StatusCode}. Check logs above for server error details.");
         response.Headers.Location.Should().NotBeNull();
         response.Headers.Location!.LocalPath.Should().StartWith("/Account/Login");
         response.Headers.Location.Query.Should().Contain("ReturnUrl");

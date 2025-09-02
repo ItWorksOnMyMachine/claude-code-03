@@ -138,9 +138,9 @@ export const getApiBaseUrl = (): string => {
   }
 
   // In development, directly call the BFF since proxy isn't working
-  if (config.isDevelopment) {
-    return 'https://host-bff.platform.local:5086/api';
-  }
+  //   if (config.isDevelopment) {
+  //     return 'http://localhost:5086/api';
+  //   }
 
   // In production, use relative path
   return config.apiUrl;
