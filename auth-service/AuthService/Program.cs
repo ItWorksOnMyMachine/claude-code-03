@@ -7,6 +7,7 @@ using Duende.IdentityServer.EntityFramework.DbContexts;
 using Duende.IdentityServer.EntityFramework.Mappers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
@@ -38,6 +39,16 @@ builder.Host.UseSerilog((context, services, configuration) =>
             .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}");
     }
 }, writeToProviders: true);
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.AddServerHeader = false;
+    options.Limits.MinRequestBodyDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+    options.Limits.MinResponseDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+#if DEBUG
+    options.ConfigureEndpoints(builder.Configuration);
+#endif
+});;
 
 // Get connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -510,3 +521,4 @@ app.Run();
 
 // Make Program accessible to tests
 public partial class Program { }
+
