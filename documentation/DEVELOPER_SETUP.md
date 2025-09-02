@@ -254,10 +254,10 @@ npm run dev
 
 ### Service URLs
 
-- Frontend: http://localhost:3002
-- BFF API: http://localhost:5000
-- Auth Service: http://localhost:5001
-- API Documentation: http://localhost:5000/swagger
+- Frontend: https://host-fe.platform.local:3002
+- BFF API: https://host-bff.platform.local:5086
+- Auth Service: https://login.platform.local:5214
+- API Documentation: http://host-bff.platform.local:5086/swagger
 
 ## IDE Configuration
 
@@ -333,15 +333,15 @@ docker-compose ps
 
 ```powershell
 # Health endpoint
-curl http://localhost:5000/health
+curl https://login.platform.local:5086/health
 
 # Auth endpoint
-curl http://localhost:5001/.well-known/openid-configuration
+curl https://login.platform.local:5086/.well-known/openid-configuration
 ```
 
 ### 4. Test Frontend
 
-1. Navigate to http://localhost:3002
+1. Navigate to https://host-fe.platform.local:3002
 2. Should see login page
 3. Login with test credentials:
    - Email: `admin@platform.local`

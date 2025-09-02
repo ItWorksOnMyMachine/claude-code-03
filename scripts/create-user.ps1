@@ -54,7 +54,7 @@ if ($tenant) {
 }
 
 # Check if BFF service is running
-$bffUrl = "http://localhost:5000"
+$bffUrl = "https://host-bff.platform.local:5086"
 $healthUrl = "$bffUrl/health"
 
 Write-Host "`nChecking BFF service availability..." -ForegroundColor Yellow
@@ -108,7 +108,7 @@ try {
         Write-Host "  Password: $password" -ForegroundColor Gray
         
         Write-Host "`nYou can now:" -ForegroundColor Cyan
-        Write-Host "  - Login at: http://localhost:3002/login" -ForegroundColor Gray
+        Write-Host "  - Login at: https://host-fe.platform.local:3002/login" -ForegroundColor Gray
         Write-Host "  - Use the API with these credentials" -ForegroundColor Gray
         Write-Host "  - Assign to additional tenants if needed" -ForegroundColor Gray
     }

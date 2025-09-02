@@ -35,9 +35,12 @@ class Environment {
   constructor() {
     // Check if we're in test environment by looking for global process object
     // This is safe because Jest provides process globally
-    const isJest = typeof process !== 'undefined' && process.env && process.env.NODE_ENV;
-    const nodeEnv = (isJest ? process.env.NODE_ENV : 'development') as EnvironmentConfig['nodeEnv'];
-    
+    const isJest =
+      typeof process !== 'undefined' && process.env && process.env.NODE_ENV;
+    const nodeEnv = (
+      isJest ? process.env.NODE_ENV : 'development'
+    ) as EnvironmentConfig['nodeEnv'];
+
     if (isJest && typeof process !== 'undefined' && process.env) {
       // Test environment - read from process.env
       const env = process.env;
@@ -50,11 +53,13 @@ class Environment {
         isTest: env.NODE_ENV === 'test',
 
         // API Configuration
-        apiUrl: env.API_URL || (env.NODE_ENV === 'production' ? '/api' : '/api'),
+        apiUrl:
+          env.API_URL || (env.NODE_ENV === 'production' ? '/api' : '/api'),
         apiTimeout: parseInt(env.API_TIMEOUT || '30000', 10),
 
         // Module Federation
-        remoteModulesDiscoveryUrl: env.REMOTE_MODULES_DISCOVERY_URL || '/api/federation/modules',
+        remoteModulesDiscoveryUrl:
+          env.REMOTE_MODULES_DISCOVERY_URL || '/api/federation/modules',
 
         // Asset Configuration
         assetPrefix: env.ASSET_PREFIX || '/',
@@ -100,12 +105,16 @@ class Environment {
     return this.config;
   }
 
-  public getValue<K extends keyof EnvironmentConfig>(key: K): EnvironmentConfig[K] {
+  public getValue<K extends keyof EnvironmentConfig>(
+    key: K,
+  ): EnvironmentConfig[K] {
     return this.config[key];
   }
 
   public isFeatureEnabled(feature: string): boolean {
-    const featureKey = `enable${feature.charAt(0).toUpperCase()}${feature.slice(1)}` as keyof EnvironmentConfig;
+    const featureKey = `enable${feature.charAt(0).toUpperCase()}${feature.slice(
+      1,
+    )}` as keyof EnvironmentConfig;
     const value = this.config[featureKey];
     return typeof value === 'boolean' ? value : false;
   }
@@ -122,17 +131,17 @@ export default environment;
  */
 export const getApiBaseUrl = (): string => {
   const config = environment.get();
-  
+
   // Use environment variable if set
   if (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
-  
+
   // In development, directly call the BFF since proxy isn't working
   if (config.isDevelopment) {
-    return 'http://localhost:5086/api';
+    return 'https://host-bff.platform.local:5086/api';
   }
-  
+
   // In production, use relative path
   return config.apiUrl;
 };

@@ -347,7 +347,7 @@ k6 run --vus 100 --duration 5m tests/performance/stress-test.js
       "stopAtEntry": false,
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:5000"
+        "ASPNETCORE_URLS": "https://host-bff.platform.local:5086"
       }
     }
   ]
@@ -380,7 +380,7 @@ const MyComponent = () => {
   "type": "chrome",
   "request": "launch",
   "name": "Debug Frontend",
-  "url": "http://localhost:3002",
+  "url": "https://host-fe.platform.local:3002",
   "webRoot": "${workspaceFolder}/platform-host/platform-host-frontend",
   "sourceMaps": true
 }
@@ -491,7 +491,7 @@ export default defineConfig({
     microFrontend: {
       moduleFederation: {
         remotes: {
-          remoteFeature: 'remoteFeature@http://localhost:3004/remoteEntry.js',
+          remoteFeature: 'remoteFeature@https://cms-fe.platform.local:3003/remoteEntry.js',
         },
       },
     },
@@ -688,8 +688,8 @@ VACUUM ANALYZE users;
 
 ```powershell
 # Check application health
-curl http://localhost:5000/health
-curl http://localhost:5001/health
+curl https://host-bff.platform.local:5086/health
+curl https://host-bff.platform.local:5086/health
 
 # Monitor resource usage
 docker stats

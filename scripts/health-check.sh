@@ -161,9 +161,9 @@ if [ "$JSON_OUTPUT" = false ]; then
 fi
 
 # Check Application Services
-check_service "Platform BFF" "HTTP" "http://localhost:5000/health" 5000 ""
-check_service "Auth Service" "HTTP" "http://localhost:5001/health" 5001 ""
-check_service "Frontend" "HTTP" "http://localhost:3002" 3002 ""
+check_service "Platform BFF" "HTTP" "https://host-bff.platform.local:5086/health" 5086 ""
+check_service "Auth Service" "HTTP" "https://login.platform.local:5214/health" 5214 ""
+check_service "Frontend" "HTTP" "https://host-fe.platform.local:3002" 3002 ""
 
 # Output results
 if [ "$JSON_OUTPUT" = true ]; then
@@ -196,9 +196,9 @@ else
     if [ "$ALL_HEALTHY" = true ]; then
         echo -e "${GREEN}✅ All services are healthy!${NC}"
         echo -e "\n${CYAN}Platform is ready at:${NC}"
-        echo -e "  ${WHITE}Frontend: http://localhost:3002${NC}"
-        echo -e "  ${WHITE}BFF API: http://localhost:5000${NC}"
-        echo -e "  ${WHITE}Auth: http://localhost:5001${NC}"
+        echo -e "  ${WHITE}Frontend: https://host-fe.platform.local:3002${NC}"
+        echo -e "  ${WHITE}BFF API: https://host-bff.platform.local:5086${NC}"
+        echo -e "  ${WHITE}Auth: https://login.platform.local:5214${NC}"
     else
         echo -e "${YELLOW}⚠️ Some services are not healthy${NC}"
         echo -e "\n${CYAN}💡 Troubleshooting:${NC}"

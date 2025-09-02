@@ -120,13 +120,13 @@ $redis = Test-ServiceHealth -Name "Redis Cache" -Type "TCP" -Port 6379 -Containe
 $services += $redis
 
 # Check Application Services
-$bff = Test-ServiceHealth -Name "Platform BFF" -Type "HTTP" -Url "http://localhost:5000/health" -Port 5000
-$auth = Test-ServiceHealth -Name "Auth Service" -Type "HTTP" -Url "http://localhost:5001/health" -Port 5001
+$bff = Test-ServiceHealth -Name "Platform BFF" -Type "HTTP" -Url "https://host-bff.platform.local:5086/health" -Port 5000
+$auth = Test-ServiceHealth -Name "Auth Service" -Type "HTTP" -Url "https://login.platform.local:5214/health" -Port 5001
 $services += $bff
 $services += $auth
 
 # Check Frontend (if running)
-$frontend = Test-ServiceHealth -Name "Frontend" -Type "HTTP" -Url "http://localhost:3002" -Port 3002
+$frontend = Test-ServiceHealth -Name "Frontend" -Type "HTTP" -Url "https://host-fe.platform.local:3002" -Port 3002
 $services += $frontend
 
 # Determine overall health
@@ -216,9 +216,9 @@ if ($json) {
     if ($allHealthy) {
         Write-Host "✅ All services are healthy!" -ForegroundColor Green
         Write-Host "`nPlatform is ready at:" -ForegroundColor Cyan
-        Write-Host "  Frontend: http://localhost:3002" -ForegroundColor White
-        Write-Host "  BFF API: http://localhost:5000" -ForegroundColor White
-        Write-Host "  Auth: http://localhost:5001" -ForegroundColor White
+        Write-Host "  Frontend: https://host-fe.platform.local:3002" -ForegroundColor White
+        Write-Host "  BFF API: https://host-bff.platform.local:5086" -ForegroundColor White
+        Write-Host "  Auth: https://login.platform.local:5214" -ForegroundColor White
     } else {
         Write-Host "⚠️ Some services are not healthy" -ForegroundColor Yellow
         

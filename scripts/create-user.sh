@@ -87,7 +87,7 @@ if [ -n "$TENANT" ]; then
 fi
 
 # Check if BFF service is running
-BFF_URL="http://localhost:5000"
+BFF_URL="https://host-bff.platform.local:5086"
 HEALTH_URL="$BFF_URL/health"
 
 echo -e "\n${YELLOW}Checking BFF service availability...${NC}"
@@ -144,7 +144,7 @@ if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
     echo -e "  ${GRAY}Password: $PASSWORD${NC}"
     
     echo -e "\n${CYAN}You can now:${NC}"
-    echo -e "  ${GRAY}- Login at: http://localhost:3002/login${NC}"
+    echo -e "  ${GRAY}- Login at: https://host-fe.platform.local:3002/login${NC}"
     echo -e "  ${GRAY}- Use the API with these credentials${NC}"
     echo -e "  ${GRAY}- Assign to additional tenants if needed${NC}"
 else

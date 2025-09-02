@@ -26,7 +26,7 @@ export default defineConfig({
     devServer: {
       proxy: {
         '/api': {
-          target: 'http://localhost:5086',
+          target: 'https://host-bff.platform.local:5086',
           changeOrigin: true,
           secure: false,
           logLevel: 'debug',
@@ -38,21 +38,21 @@ export default defineConfig({
       if (!config.plugins) {
         config.plugins = [];
       }
-      
+
       // Ignore test files
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /\.(test|spec)\.(ts|tsx|js|jsx)$/,
-        })
+        }),
       );
-      
+
       // Ignore __tests__ directories
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /\/__tests__\//,
-        })
+        }),
       );
-      
+
       return config;
     },
   },

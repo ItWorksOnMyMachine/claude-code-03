@@ -128,9 +128,9 @@ if docker-compose $ARGS; then
         
         echo -e "\n${GREEN}✓ All services starting!${NC}"
         echo -e "\n${CYAN}Service URLs:${NC}"
-        echo -e "  ${WHITE}Frontend:        http://localhost:3002${NC}"
-        echo -e "  ${WHITE}Platform BFF:    http://localhost:5000${NC}"
-        echo -e "  ${WHITE}Auth Service:    http://localhost:5001${NC}"
+        echo -e "  ${WHITE}Frontend:        https://host-fe.platform.local:3002${NC}"
+        echo -e "  ${WHITE}Platform BFF:    https://host-bff.platform.local:5086${NC}"
+        echo -e "  ${WHITE}Auth Service:    https://login.platform.local:5214${NC}"
         echo -e "  ${WHITE}PostgreSQL Platform: localhost:5432${NC}"
         echo -e "  ${WHITE}PostgreSQL Auth:     localhost:5433${NC}"
         echo -e "  ${WHITE}Redis:           localhost:6379${NC}"

@@ -5,7 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PlatformBff.Services;
+namespace PlatformBff.Middleware;
 
 public class TenantContextMiddleware
 {

@@ -6,7 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
-namespace AuthService.Middleware;
+namespace PlatformBff.Middleware;
 
 public class EndpointConfiguration
 {

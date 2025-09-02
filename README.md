@@ -51,7 +51,7 @@ npm run dev
 
 ### 3. Access the Platform
 
-Open your browser to: **http://localhost:3002**
+Open your browser to: **https://host-fe.platform.local:3002**
 
 **Test Credentials:**
 - Email: `admin@platform.local`

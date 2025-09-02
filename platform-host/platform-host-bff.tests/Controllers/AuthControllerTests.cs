@@ -200,7 +200,7 @@ public class AuthControllerTests
         
     //     var redirectResult = Assert.IsType<RedirectResult>(result);
     //     // Should redirect to frontend callback page with returnUrl as query parameter
-    //     var expectedUrl = $"http://localhost:3002/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}";
+    //     var expectedUrl = $"https://host-fe.platform.local:3002/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}";
     //     Assert.Equal(expectedUrl, redirectResult.Url);
     // }
 

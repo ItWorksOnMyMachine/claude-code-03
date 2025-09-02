@@ -18,20 +18,20 @@ This is the API specification for the spec detailed in @.agent-os/specs/2025-08-
   "services": {
     "auth-service": {
       "status": "healthy",
-      "url": "http://localhost:5001",
+      "url": "https://login.platform.local:5214",
       "database": "connected",
       "version": "1.0.0"
     },
     "platform-bff": {
       "status": "healthy", 
-      "url": "http://localhost:5000",
+      "url": "https://host-bff.platform.local:5086",
       "database": "connected",
       "redis": "connected",
       "version": "1.0.0"
     },
     "platform-frontend": {
       "status": "healthy",
-      "url": "http://localhost:3002",
+      "url": "https://host-fe.platform.local:3002",
       "version": "1.0.0"
     },
     "postgres-platform": {
@@ -146,9 +146,9 @@ This is the API specification for the spec detailed in @.agent-os/specs/2025-08-
   "environment": "Development",
   "configurations": {
     "auth": {
-      "authority": "http://localhost:5001",
+      "authority": "https://host-bff.platform.local:5214",
       "clientId": "platform-bff",
-      "redirectUri": "http://localhost:5000/signin-oidc"
+      "redirectUri": "https://host-bff.platform.local:5086/signin-oidc"
     },
     "database": {
       "platform": "connected",
@@ -159,7 +159,7 @@ This is the API specification for the spec detailed in @.agent-os/specs/2025-08-
       "status": "connected"
     },
     "cors": {
-      "origins": ["http://localhost:3002", "http://localhost:5000"]
+      "origins": ["https://host-fe.platform.local:3002", "https://host-bff.platform.local:5086"]
     }
   },
   "valid": true
@@ -182,9 +182,9 @@ Services communicate using Docker network hostnames:
 ### External Access Ports
 
 Development access from host machine:
-- Frontend: http://localhost:3002
-- Platform BFF: http://localhost:5000
-- Auth Service: http://localhost:5001
+- Frontend: https://host-fe.platform.local:3002
+- Platform BFF: https://host-bff.platform.local:5086
+- Auth Service: https://login.platform.local:5214
 - Platform DB: localhost:5432
 - Auth DB: localhost:5433
 - Redis: localhost:6379

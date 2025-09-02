@@ -17,7 +17,7 @@ This is the API specification for the spec detailed in @.agent-os/specs/2025-08-
   "modules": [
     {
       "name": "cms",
-      "remoteEntry": "http://localhost:3003/remoteEntry.js",
+      "remoteEntry": "https://cms-fe.platform.local:3003/remoteEntry.js",
       "exposedModule": "./App",
       "displayName": "Content Management",
       "icon": "description",

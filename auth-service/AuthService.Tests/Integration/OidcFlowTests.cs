@@ -186,14 +186,14 @@ public class OidcFlowTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task CORS_Headers_Should_Be_Present_For_Allowed_Origins()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Add("Origin", "http://localhost:3002");
+        _client.DefaultRequestHeaders.Add("Origin", "https://host-fe.platform.local:3002");
         
         // Act
         var response = await _client.GetAsync("/.well-known/openid-configuration");
         
         // Assert
         response.Headers.Should().ContainKey("Access-Control-Allow-Origin");
-        response.Headers.GetValues("Access-Control-Allow-Origin").Should().Contain("http://localhost:3002");
+        response.Headers.GetValues("Access-Control-Allow-Origin").Should().Contain("https://host-fe.platform.local:3002");
         response.Headers.Should().ContainKey("Access-Control-Allow-Credentials");
         response.Headers.GetValues("Access-Control-Allow-Credentials").Should().Contain("true");
     }

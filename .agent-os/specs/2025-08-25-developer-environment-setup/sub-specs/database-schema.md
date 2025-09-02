@@ -81,8 +81,8 @@ VALUES
 -- Created via ConfigurationDbContext seeding
 -- ClientId: platform-bff
 -- ClientSecret: [generated]
--- RedirectUris: http://localhost:5000/signin-oidc
--- PostLogoutRedirectUris: http://localhost:5000/signout-callback-oidc
+-- RedirectUris: https://host-bff.platform.local:5086/signin-oidc
+-- PostLogoutRedirectUris: https://host-bff.platform.local:5086/signout-callback-oidc
 -- AllowedScopes: openid, profile, email, offline_access
 ```
 

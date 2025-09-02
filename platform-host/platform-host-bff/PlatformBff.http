@@ -1,4 +1,4 @@
-@PlatformBff_HostAddress = http://localhost:5086
+@PlatformBff_HostAddress = https://host-bff.platform.local:5086
 
 GET {{PlatformBff_HostAddress}}/weatherforecast/
 Accept: application/json

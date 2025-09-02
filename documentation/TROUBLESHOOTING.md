@@ -184,7 +184,7 @@ POSTGRES_PLATFORM_PORT=5433
 
 **Error:**
 ```
-Unable to bind to http://localhost:5000 on the IPv4 loopback interface
+Unable to bind to https://host-bff.platform.local:5086 on the IPv4 loopback interface
 ```
 
 **Solution:**
@@ -198,7 +198,7 @@ BFF_PORT=5002
 
 # 3. For development, use different launch profile
 cd platform-host\platform-host-bff
-dotnet run --urls "http://localhost:5002"
+dotnet run --urls "https://host-bff.platform.local:5086"
 ```
 
 ### Frontend Build Errors
@@ -462,7 +462,7 @@ sudo sysctl -p
 
 **Error:**
 ```
-Access to fetch at 'http://localhost:5000' from origin 'http://localhost:3002' has been blocked by CORS policy
+Access to fetch at 'https://host-bff.platform.local:5086' from origin 'https://host-fe.platform.local:3002' has been blocked by CORS policy
 ```
 
 **Solution:**
@@ -473,7 +473,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Development",
         policy =>
         {
-            policy.WithOrigins("http://localhost:3002")
+            policy.WithOrigins("https://host-fe.platform.local:3002")
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
@@ -493,7 +493,7 @@ Uncaught Error: Module "./Component" does not exist in container
 **Solution:**
 ```javascript
 // 1. Check remote module is running
-// Should be accessible at: http://localhost:3003/remoteEntry.js
+// Should be accessible at: http://host-fe.platform.local:3003/remoteEntry.js
 
 // 2. Verify exposes in remote's webpack config
 exposes: {

@@ -14,8 +14,8 @@ Successfully recovered from a crashed development session and got the entire loc
 - Authentication flow functional
 
 ## Services Running
-- **Frontend**: http://localhost:3006 (port 3002 was in use)
-- **BFF API**: http://localhost:5000  
+- **Frontend**: https://host-fe.platform.local:3002
+- **BFF API**: https://host-bff.platform.local:5086
 - **Auth Service**: Running locally (started manually)
 - **PostgreSQL (Platform)**: localhost:5432
 - **PostgreSQL (Auth)**: localhost:5433

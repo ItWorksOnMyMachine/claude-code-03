@@ -83,17 +83,17 @@ try {
             # Start Auth Service in new window
             Write-Host "Starting Auth Service..." -ForegroundColor Cyan
             $authPath = Join-Path $PSScriptRoot ".." "auth-service" "AuthService"
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$authPath'; Write-Host 'Starting Auth Service on http://localhost:5001' -ForegroundColor Green; dotnet run" -WindowStyle Normal
+            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$authPath'; Write-Host 'Starting Auth Service on https://login.platform.local:5214' -ForegroundColor Green; dotnet run" -WindowStyle Normal
             
             # Start Platform BFF in new window
             Write-Host "Starting Platform BFF..." -ForegroundColor Cyan
             $bffPath = Join-Path $PSScriptRoot ".." "platform-host" "platform-host-bff"
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$bffPath'; Write-Host 'Starting Platform BFF on http://localhost:5000' -ForegroundColor Green; dotnet run" -WindowStyle Normal
+            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$bffPath'; Write-Host 'Starting Platform BFF on https://host-bff.platform.local:5086' -ForegroundColor Green; dotnet run" -WindowStyle Normal
             
             # Start Frontend in new window
             Write-Host "Starting Frontend..." -ForegroundColor Cyan
             $frontendPath = Join-Path $PSScriptRoot ".." "platform-host" "platform-host-frontend"
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$frontendPath'; Write-Host 'Starting Frontend on http://localhost:3002' -ForegroundColor Green; npm run dev" -WindowStyle Normal
+            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$frontendPath'; Write-Host 'Starting Frontend on https://host-fe.platform.local:3002' -ForegroundColor Green; npm run dev" -WindowStyle Normal
             
             # Give services time to start
             Write-Host "`nWaiting for services to initialize..." -ForegroundColor Yellow
@@ -101,9 +101,9 @@ try {
             
             Write-Host "`n✓ All services starting!" -ForegroundColor Green
             Write-Host "`nService URLs:" -ForegroundColor Cyan
-            Write-Host "  Frontend:        http://localhost:3002" -ForegroundColor White
-            Write-Host "  Platform BFF:    http://localhost:5000" -ForegroundColor White
-            Write-Host "  Auth Service:    http://localhost:5001" -ForegroundColor White
+            Write-Host "  Frontend:        https://host-fe.platform.local:3002" -ForegroundColor White
+            Write-Host "  Platform BFF:    https://host-bff.platform.local:5086" -ForegroundColor White
+            Write-Host "  Auth Service:    https://login.platform.local:5214" -ForegroundColor White
             Write-Host "  PostgreSQL Platform: localhost:5432" -ForegroundColor White
             Write-Host "  PostgreSQL Auth:     localhost:5433" -ForegroundColor White
             Write-Host "  Redis:           localhost:6379" -ForegroundColor White

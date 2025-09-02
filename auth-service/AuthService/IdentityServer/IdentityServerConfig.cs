@@ -127,9 +127,9 @@ public static class IdentityServerConfig
             RedirectUris = isDevelopment
                 ? new[] 
                 { 
-                    "http://localhost:5000/signin-oidc",
+                    "https://localhost:5000/signin-oidc",
                     "https://localhost:5001/signin-oidc",
-                    "http://localhost:3002/auth/callback" // Frontend callback
+                    "https://host-fe.platform.local:3002/auth/callback" // Frontend callback
                 }
                 : new[] 
                 { 
@@ -142,7 +142,7 @@ public static class IdentityServerConfig
                 { 
                     "http://localhost:5000/signout-callback-oidc",
                     "https://localhost:5001/signout-callback-oidc",
-                    "http://localhost:3002/"
+                    "https://host-fe.platform.local:3002/"
                 }
                 : new[] 
                 { 
@@ -153,7 +153,7 @@ public static class IdentityServerConfig
             AllowedCorsOrigins = isDevelopment
                 ? new[] 
                 { 
-                    "http://localhost:3002", // Frontend
+                    "https://host-fe.platform.local:3002", // Frontend
                     "http://localhost:5000", // BFF
                     "https://localhost:5001" // BFF HTTPS
                 }

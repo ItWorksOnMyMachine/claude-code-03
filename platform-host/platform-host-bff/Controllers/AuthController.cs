@@ -206,7 +206,7 @@ public class AuthController : ControllerBase
                            "/";
             
             // Redirect to frontend with auth callback indicator
-            var frontendUrl = _configuration?["Frontend:Url"] ?? "http://localhost:3002";
+            var frontendUrl = _configuration?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
             return Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
         }
         catch (Exception ex)
@@ -341,7 +341,7 @@ public class AuthController : ControllerBase
         _logger.LogWarning("Authentication error: {Message}", message);
         
         // Instead of showing error, redirect to frontend with error parameter
-        var frontendUrl = _configuration?["Frontend:Url"] ?? "http://localhost:3002";
+        var frontendUrl = _configuration?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
         return Redirect($"{frontendUrl}/login?error=auth_failed&details={Uri.EscapeDataString(message ?? "")}");
     }
 }

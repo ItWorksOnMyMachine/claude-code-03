@@ -82,7 +82,9 @@ describe('Platform Host - Project Setup Validation', () => {
       const configContent = fs.readFileSync(configPath, 'utf-8');
 
       expect(configContent).toContain("'/api':");
-      expect(configContent).toContain("target: 'http://localhost:5086'");
+      expect(configContent).toContain(
+        "target: 'https://host-bff.platform.local:5086'",
+      );
       expect(configContent).toContain('changeOrigin: true');
     });
 

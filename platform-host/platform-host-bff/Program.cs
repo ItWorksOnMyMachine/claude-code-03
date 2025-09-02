@@ -9,6 +9,7 @@ using PlatformBff.Services;
 using PlatformBff.Services.Tenant;
 using PlatformBff.Repositories;
 using StackExchange.Redis;
+using PlatformBff.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,7 +95,7 @@ builder.Services.AddSession(options =>
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    //options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
@@ -126,7 +127,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
-    options.Authority = builder.Configuration["Authentication:Authority"] ?? "http://localhost:5001";
+    options.Authority = builder.Configuration["Authentication:Authority"] ?? "https://login.platform.local:5214";
     options.ClientId = builder.Configuration["Authentication:ClientId"] ?? "platform-bff";
     options.ClientSecret = builder.Configuration["Authentication:ClientSecret"] ?? "platform-bff-secret";
     options.ResponseType = OpenIdConnectResponseType.Code;
@@ -187,14 +188,14 @@ builder.Services.AddAuthentication(options =>
                 {
                     logger?.LogInformation("User already authenticated, redirecting to frontend");
                     context.HandleResponse();
-                    var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "http://localhost:3002";
+                    var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
                     context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl=/");
                     return Task.CompletedTask;
                 }
                 
                 // If not authenticated and no state, something is wrong - redirect to login
                 context.HandleResponse();
-                var frontendUrl2 = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "http://localhost:3002";
+                var frontendUrl2 = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
                 context.Response.Redirect($"{frontendUrl2}/login?error=invalid_state");
                 return Task.CompletedTask;
             }
@@ -294,7 +295,7 @@ builder.Services.AddAuthentication(options =>
             
             logger?.LogInformation("Authentication completed successfully, redirecting to frontend");
             
-            var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "http://localhost:3002";
+            var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
             context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
             context.HandleResponse();
             
@@ -339,7 +340,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevelopmentPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3002") // platform-host
+        policy.WithOrigins("https://host-fe.platform.local:3002") // platform-host
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

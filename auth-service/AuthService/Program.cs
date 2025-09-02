@@ -40,15 +40,18 @@ builder.Host.UseSerilog((context, services, configuration) =>
     }
 }, writeToProviders: true);
 
-builder.WebHost.ConfigureKestrel(options =>
+if (!builder.Environment.IsEnvironment("Testing"))
 {
-    options.AddServerHeader = false;
-    options.Limits.MinRequestBodyDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
-    options.Limits.MinResponseDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.AddServerHeader = false;
+        options.Limits.MinRequestBodyDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+        options.Limits.MinResponseDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
 #if DEBUG
-    options.ConfigureEndpoints(builder.Configuration);
+        options.ConfigureEndpoints(builder.Configuration);
 #endif
-});;
+    });
+}
 
 // Get connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -124,7 +127,7 @@ var identityServerBuilder = builder.Services.AddIdentityServer(options =>
     }
     else
     {
-        options.IssuerUri = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://localhost:5001";
+        options.IssuerUri = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://login.platform.local:5214";
     }
     options.Events.RaiseErrorEvents = true;
     options.Events.RaiseInformationEvents = true;
@@ -223,7 +226,7 @@ else
     builder.Services.AddAuthentication()
         .AddJwtBearer("Bearer", options =>
         {
-            options.Authority = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://localhost:5001";
+            options.Authority = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://login.platform.local:5214";
             options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
             
             options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
@@ -375,11 +378,7 @@ builder.Services.AddCors(options =>
     {
         var devOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? 
             new[] { 
-                "http://localhost:3000", 
-                "http://localhost:3001", 
-                "http://localhost:3002", 
-                "http://localhost:5000", 
-                "http://localhost:5001" 
+                "https://host-fe.platform.local:3002", 
             };
         
         policy.WithOrigins(devOrigins)

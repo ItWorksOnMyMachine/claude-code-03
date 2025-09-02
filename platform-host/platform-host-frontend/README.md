@@ -27,7 +27,7 @@ cp .env.example .env.local
 npm run dev
 
 # The application will be available at:
-# http://localhost:3002
+# https://host-fe.platform.local:3002
 ```
 
 ## 📜 Available Scripts
@@ -97,7 +97,7 @@ NODE_ENV=development
 PORT=3002
 
 # API Configuration
-API_URL=http://localhost:5000
+API_URL=https://host-bff.platform.local:5086
 API_TIMEOUT=30000
 
 # Module Federation
@@ -116,7 +116,7 @@ The development server proxies `/api/*` requests to the Platform BFF running on 
 // modern.config.ts
 proxy: {
   '/api': {
-    target: 'http://localhost:5000',
+    target: 'https://host-bff.platform.local:5086',
     changeOrigin: true,
     ws: true, // WebSocket support
   }
@@ -200,7 +200,7 @@ import moduleRegistry from '@/services/ModuleRegistry';
 // Register a new module
 moduleRegistry.register({
   name: 'cms',
-  entry: 'http://localhost:3003/remoteEntry.js',
+  entry: 'https://cms-fe.platform.local:3003/remoteEntry.js',
   exposedModule: './App',
   displayName: 'Content Management',
   route: '/cms',

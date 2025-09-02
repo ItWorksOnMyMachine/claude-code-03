@@ -39,6 +39,6 @@ Developers configure their micro frontend module details in the federation confi
 
 ## Expected Deliverable
 
-1. A running ModernJS React application on localhost:3002 with Module Federation host configuration
+1. A running ModernJS React application on host-fe.platform.local:3002 with Module Federation host configuration
 2. Ability to load a test remote module dynamically to verify federation setup
 3. Shared dependency configuration preventing duplicate React/MUI loading across modules

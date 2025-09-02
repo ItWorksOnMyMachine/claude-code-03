@@ -156,8 +156,8 @@ Key libraries are marked as singletons in Module Federation to prevent duplicati
 
 ### Development Ports
 
--   Frontend: `http://localhost:3002`
--   BFF API: `http://localhost:5000`
+-   Frontend: `https://host-fe.platform.local:3002`
+-   BFF API: `https://host-bff.platform.local:5086`
 -   Remote modules: Configured dynamically via federation config
 
 ## Important Conventions

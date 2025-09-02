@@ -13,18 +13,18 @@ The Platform Host is a modern multi-tenant SaaS platform built using microservic
                                │ HTTPS
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     React Module Federation Host                     │
-│                         (localhost:3002)                             │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐   │
-│  │   Shell    │  │  Remote 1  │  │  Remote 2  │  │  Remote N  │   │
-│  │  (Host)    │  │  (Module)  │  │  (Module)  │  │  (Module)  │   │
-│  └────────────┘  └────────────┘  └────────────┘  └────────────┘   │
+│                     React Module Federation Host                    │
+│                     (host-fe.platform.local:3002)                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐     │
+│  │   Shell    │  │  Remote 1  │  │  Remote 2  │  │  Remote N  │     │
+│  │  (Host)    │  │  (Module)  │  │  (Module)  │  │  (Module)  │     │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘     │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │ HTTP/REST
                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Platform BFF (.NET 9)                          │
-│                         (localhost:5000)                             │
+┌────────────────────────────────────────────────────────────────────┐
+│                      Platform BFF (.NET 9)                         │
+│                 (host-bff.platform.local:5086)                     │
 │  ┌────────────────────────────────────────────────────────────┐    │
 │  │  FastEndpoints  │  Auth  │  Caching  │  Rate Limiting      │    │
 │  └────────────────────────────────────────────────────────────┘    │
@@ -34,8 +34,8 @@ The Platform Host is a modern multi-tenant SaaS platform built using microservic
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │   Auth Service   │  │  PostgreSQL      │  │     Redis        │
 │  (Duende IS6)    │  │   Databases      │  │     Cache        │
-│ (localhost:5001) │  │  Platform: 5432  │  │ (localhost:6379) │
-│                  │  │  Auth: 5433      │  │                  │
+│ (login.platform  │  │  Platform: 5432  │  │ (localhost:6379) │
+│  .local:5214)    │  │  Auth: 5433      │  │                  │
 └──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
@@ -151,7 +151,7 @@ public class TenantMiddleware
 // Runtime module import
 const RemoteModule = React.lazy(() => 
   loadRemoteModule({
-    url: 'http://localhost:3003/remoteEntry.js',
+    url: 'https://cms-fe.platform.local:3003/remoteEntry.js',
     scope: 'remoteApp',
     module: './Component'
   })

@@ -147,23 +147,28 @@ public static class DatabaseSeeder
                     RequireConsent = false,
                     
                     RedirectUris = {
-                        "http://localhost:5000/signin-oidc",
-                        "http://localhost:5000/callback",
-                        "https://localhost:5001/signin-oidc",
-                        "http://localhost:5086/signin-oidc",
-                        "http://localhost:5086/callback",
+                        // "http://localhost:5000/signin-oidc",
+                        // "http://localhost:5000/callback",
+                        // "https://localhost:5001/signin-oidc",
+                        // "http://localhost:5086/signin-oidc",
+                        // "http://localhost:5086/callback",
+                        "https://host-bff.platform.local:5086/signin-oidc",
+                        "https://host-bff.platform.local:5086/callback",
                     },
                     PostLogoutRedirectUris = {
-                        "http://localhost:5000/signout-callback-oidc",
-                        "http://localhost:5000/",
-                        "https://localhost:5001/signout-callback-oidc",
-                        "http://localhost:5086/signout-callback-oidc",
-                        "http://localhost:5086/",
+                        // "http://localhost:5000/signout-callback-oidc",
+                        // "http://localhost:5000/",
+                        // "https://localhost:5001/signout-callback-oidc",
+                        // "http://localhost:5086/signout-callback-oidc",
+                        // "http://localhost:5086/",
+                        "https://host-bff.platform.local:5086/signout-callback-oidc",
+                        "https://host-bff.platform.local:5086/",
                     },
                     AllowedCorsOrigins = {
-                        "http://localhost:5000",
-                        "https://localhost:5001",
-                        "http://localhost:5086",
+                        // "http://localhost:5000",
+                        // "https://localhost:5001",
+                        // "http://localhost:5086",
+                         "https://host-bff.platform.local:5086",
                     },
                     
                     AllowedScopes = new List<string>
@@ -197,21 +202,21 @@ public static class DatabaseSeeder
                     RequireConsent = false,
                     
                     RedirectUris = { 
-                        "http://localhost:3002/callback",
-                        "http://localhost:3002/silent-renew",
-                        "http://localhost:3002/",
+                        "https://host-fe.platform.local:3002/callback",
+                        "https://host-fe.platform.local:3002/silent-renew",
+                        "https://host-fe.platform.local:3002/",
                         "http://localhost:3006/callback",
                         "http://localhost:3006/silent-renew",
                         "http://localhost:3006/"
                     },
                     PostLogoutRedirectUris = { 
-                        "http://localhost:3002/",
-                        "http://localhost:3002/logout",
+                        "https://host-fe.platform.local:3002/",
+                        "https://host-fe.platform.local:3002/logout",
                         "http://localhost:3006/",
                         "http://localhost:3006/logout"
                     },
                     AllowedCorsOrigins = { 
-                        "http://localhost:3002",
+                        "https://host-fe.platform.local:3002",
                         "http://localhost:3000",
                         "http://localhost:3006"
                     },

@@ -24,7 +24,7 @@ describe('Build Configuration', () => {
 
     it('should have API proxy configured for /api/*', () => {
       expect(modernConfig).toContain("'/api'");
-      expect(modernConfig).toContain('http://localhost:5086');
+      expect(modernConfig).toContain('https://host-bff.platform.local:5086');
     });
 
     it('should have Module Federation plugin configured', () => {

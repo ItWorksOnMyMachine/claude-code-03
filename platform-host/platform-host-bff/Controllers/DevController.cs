@@ -54,7 +54,7 @@ public class DevController : ControllerBase
         // Check Auth Service
         try
         {
-            var authUrl = _configuration["Authentication:Authority"] ?? "http://localhost:5214";
+            var authUrl = _configuration["Authentication:Authority"] ?? "https://login.platform.local:5214";
             var authClient = _httpClientFactory.CreateClient();
             authClient.Timeout = TimeSpan.FromSeconds(5);
             
@@ -87,7 +87,7 @@ public class DevController : ControllerBase
             response.Services["auth-service"] = new ServiceHealthStatus
             {
                 Status = "unhealthy",
-                Url = _configuration["Authentication:Authority"] ?? "http://localhost:5001"
+                Url = _configuration["Authentication:Authority"] ?? "https://login.platform.local:5214"
             };
         }
 
@@ -95,7 +95,7 @@ public class DevController : ControllerBase
         response.Services["platform-bff"] = new ServiceHealthStatus
         {
             Status = "healthy",
-            Url = "http://localhost:5000",
+            Url = "https://host-bff.platform.local:5086",
             Version = "1.0.0"
         };
 
@@ -154,7 +154,7 @@ public class DevController : ControllerBase
         // Check Frontend (if accessible)
         try
         {
-            var frontendUrl = "http://localhost:3002";
+            var frontendUrl = "https://host-fe.platform.local:3002";
             var frontendClient = _httpClientFactory.CreateClient();
             frontendClient.Timeout = TimeSpan.FromSeconds(5);
             
@@ -171,7 +171,7 @@ public class DevController : ControllerBase
             response.Services["platform-frontend"] = new ServiceHealthStatus
             {
                 Status = "unknown",
-                Url = "http://localhost:3002",
+                Url = "https://host-fe.platform.local:3002",
                 Version = "1.0.0"
             };
         }
@@ -200,7 +200,7 @@ public class DevController : ControllerBase
         try
         {
             // Call auth service to create user
-            var authUrl = _configuration["Authentication:Authority"] ?? "http://localhost:5001";
+            var authUrl = _configuration["Authentication:Authority"] ?? "https://host-bff.platform.local:5214";
             var httpClient = _httpClientFactory.CreateClient();
             
             var authRequest = new
@@ -354,7 +354,7 @@ public class DevController : ControllerBase
             if (request.Target == "all" || request.Target == "auth")
             {
                 // Call auth service to reset its database
-                var authUrl = _configuration["Authentication:Authority"] ?? "http://localhost:5001";
+                var authUrl = _configuration["Authentication:Authority"] ?? "https://host-bff.platform.local:5214";
                 var httpClient = _httpClientFactory.CreateClient();
                 
                 var authResetRequest = new { seed = request.Seed };
@@ -422,7 +422,7 @@ public class DevController : ControllerBase
         // Check auth database via auth service
         try
         {
-            var authUrl = _configuration["Authentication:Authority"] ?? "http://localhost:5001";
+            var authUrl = _configuration["Authentication:Authority"] ?? "https://host-bff.platform.local:5214";
             var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromSeconds(5);
             

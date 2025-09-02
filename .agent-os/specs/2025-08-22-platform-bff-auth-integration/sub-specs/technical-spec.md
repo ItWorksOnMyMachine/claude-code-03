@@ -9,8 +9,8 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 
 ### OIDC Client Configuration
 - Configure platform-host-bff as a confidential OIDC client in auth-service
-- Set up redirect URIs for login callback (http://localhost:5000/signin-oidc)
-- Configure post-logout redirect URI (http://localhost:5000/signout-callback-oidc)
+- Set up redirect URIs for login callback (https://host-bff.platform.local:5086/signin-oidc)
+- Configure post-logout redirect URI (https://host-bff.platform.local:5086/signout-callback-oidc)
 - Enable authorization code flow with PKCE
 - Configure client secrets securely in appsettings
 
@@ -20,7 +20,7 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 - Set cookie name to "platform.auth"
 - Enable HttpOnly, Secure, and SameSite=Lax for cookies
 - Configure sliding expiration for session cookies
-- Set up authority URL pointing to auth-service (http://localhost:5001)
+- Set up authority URL pointing to auth-service (http://login.platform.local:5214)
 
 ### Redis Session Storage
 - Implement distributed session storage using Redis
