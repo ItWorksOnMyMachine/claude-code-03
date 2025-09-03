@@ -1,5 +1,7 @@
 import { appTools, defineConfig } from '@modern-js/app-tools';
 import { moduleFederationPlugin } from '@module-federation/modern-js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // https://modernjs.dev/en/configure/app/usage
 export default defineConfig({
@@ -11,7 +13,9 @@ export default defineConfig({
   },
   dev: {
     port: 3002,
+    host: 'host-fe.platform.local',
     hmr: true, // Explicitly enable HMR
+    //https: true, // Let webpack devServer handle HTTPS
   },
   output: {
     // Public path configuration for different environments
@@ -24,6 +28,22 @@ export default defineConfig({
   },
   tools: {
     devServer: {
+      https: {
+        cert: fs.readFileSync(
+          path.resolve(
+            __dirname,
+            '../../certs/_wildcard.platform.local-fullchain.pem',
+          ),
+          'utf8',
+        ),
+        key: fs.readFileSync(
+          path.resolve(
+            __dirname,
+            '../../certs/_wildcard.platform.local-key-pkcs8.pem',
+          ),
+          'utf8',
+        ),
+      },
       proxy: {
         '/api': {
           target: 'https://host-bff.platform.local:5086',
@@ -34,6 +54,10 @@ export default defineConfig({
       },
     },
     webpack: (config: any, { webpack }: any) => {
+      config.output = config.output || {};
+      config.output.publicPath = 'auto';
+      config.output.crossOriginLoading = 'anonymous';
+
       // Exclude test files from the build using IgnorePlugin
       if (!config.plugins) {
         config.plugins = [];
