@@ -103,7 +103,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "Auth.Identity";
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+    options.Cookie.SecurePolicy = (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
     options.LoginPath = "/Account/Login";
