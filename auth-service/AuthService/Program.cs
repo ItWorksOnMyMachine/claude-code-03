@@ -63,7 +63,7 @@ if (builder.Environment.IsEnvironment("Testing"))
     // Use in-memory database for testing
     builder.Services.AddDbContext<AuthDbContext>(options =>
         options.UseInMemoryDatabase("TestDb"));
-    
+
     // Add PersistedGrantDbContext for testing
     builder.Services.AddDbContext<PersistedGrantDbContext>(options =>
         options.UseInMemoryDatabase("TestPersistedGrantDb"));
@@ -84,13 +84,13 @@ var identityBuilder = builder.Services.AddIdentity<AppUser, AppRole>(options =>
     options.Password.RequireUppercase = builder.Configuration.GetValue<bool>("Identity:Password:RequireUppercase", true);
     options.Password.RequireLowercase = builder.Configuration.GetValue<bool>("Identity:Password:RequireLowercase", true);
     options.Password.RequireNonAlphanumeric = builder.Configuration.GetValue<bool>("Identity:Password:RequireNonAlphanumeric", false);
-    
+
     // User settings
     options.User.RequireUniqueEmail = builder.Configuration.GetValue<bool>("Identity:User:RequireUniqueEmail", true);
-    
+
     // Sign-in settings
     options.SignIn.RequireConfirmedEmail = builder.Configuration.GetValue<bool>("Identity:SignIn:RequireConfirmedEmail", false);
-    
+
     // Lockout settings
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     options.Lockout.MaxFailedAccessAttempts = 5;
@@ -103,7 +103,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "Auth.Identity";
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
+    options.Cookie.SecurePolicy = builder.Environment.IsEnvironment("Testing")
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
     options.LoginPath = "/Account/Login";
@@ -144,8 +144,8 @@ var identityServerBuilder = builder.Services.AddIdentityServer(options =>
     options.Authentication.CookieLifetime = TimeSpan.FromHours(1);
     options.Authentication.CookieSlidingExpiration = true;
 
-        // Dev-only: avoid emitting idsrv.session (SameSite=None; Secure) on HTTP
-    if (builder.Environment.IsDevelopment())
+    // Dev-only: avoid emitting idsrv.session (SameSite=None; Secure) on HTTP
+    if (builder.Environment.IsEnvironment("Testing"))
     {
         options.Authentication.CookieSameSiteMode = SameSiteMode.Lax;
         options.Endpoints.EnableCheckSessionEndpoint = false;
@@ -165,27 +165,6 @@ if (builder.Environment.IsEnvironment("Testing"))
         .AddInMemoryPersistedGrants()
         .AddDeveloperSigningCredential();
 }
-else if (builder.Environment.IsDevelopment())
-{
-    // Development: Use persistent stores with Entity Framework (same as production)
-    identityServerBuilder
-        .AddConfigurationStore(options =>
-        {
-            options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
-                sql => sql.MigrationsAssembly(migrationsAssembly));
-        })
-        // Configure Operational Store (grants, consent, tokens, codes)
-        .AddOperationalStore(options =>
-        {
-            options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
-                sql => sql.MigrationsAssembly(migrationsAssembly));
-            
-            // Enable automatic token cleanup
-            options.EnableTokenCleanup = true;
-            options.TokenCleanupInterval = 3600; // 1 hour
-        })
-        .AddDeveloperSigningCredential();
-}
 else
 {
     // Production: Use persistent stores with Entity Framework
@@ -200,12 +179,23 @@ else
         {
             options.ConfigureDbContext = b => b.UseNpgsql(connectionString,
                 sql => sql.MigrationsAssembly(migrationsAssembly));
-            
+
             // Enable automatic token cleanup
             options.EnableTokenCleanup = true;
             options.TokenCleanupInterval = 3600; // 1 hour
-        })
-        .AddDeveloperSigningCredential(); // TODO: Replace with real certificate in production
+        });
+
+    if (builder.Environment.IsDevelopment())
+    {
+        identityServerBuilder
+            .AddDeveloperSigningCredential();
+    }
+    else
+    {
+        identityServerBuilder
+            .AddDeveloperSigningCredential(); // TODO: Replace with real certificate in production
+
+    }
 }
 
 // Configure JWT Bearer authentication for API endpoints
@@ -228,21 +218,21 @@ else
         {
             options.Authority = builder.Configuration["IdentityServer:IssuerUri"] ?? "https://login.platform.local:5214";
             options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-            
+
             options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
             {
                 ValidateAudience = false,
                 ValidTypes = new[] { "at+jwt" }
             };
-            
+
             // For development, accept self-signed certificates
-            if (builder.Environment.IsDevelopment())
-            {
-                options.BackchannelHttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-                };
-            }
+            // if (builder.Environment.IsDevelopment())
+            // {
+            //     options.BackchannelHttpHandler = new HttpClientHandler
+            //     {
+            //         ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+            //     };
+            // }
         });
 }
 
@@ -254,7 +244,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser();
         policy.RequireRole("Admin");
     });
-    
+
     options.AddPolicy("ApiScope", policy =>
     {
         policy.RequireAuthenticatedUser();
@@ -333,26 +323,14 @@ builder.Services.AddControllersWithViews(options =>
 builder.Services.AddRazorPages();
 
 // Configure anti-forgery options
-if (!builder.Environment.IsEnvironment("Testing"))
+builder.Services.AddAntiforgery(options =>
 {
-    builder.Services.AddAntiforgery(options =>
-    {
-        options.HeaderName = "X-CSRF-TOKEN";
-        options.Cookie.Name = "X-CSRF-TOKEN";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? Microsoft.AspNetCore.Http.CookieSecurePolicy.None : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? Microsoft.AspNetCore.Http.SameSiteMode.Lax : Microsoft.AspNetCore.Http.SameSiteMode.Strict;
-    });
-}
-// Configure antiforgery for testing environment
-else
-{
-    builder.Services.AddAntiforgery(options =>
-    {
-        options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.None;
-        options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
-    });
-}
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "X-CSRF-TOKEN";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = builder.Environment.IsEnvironment("Testing") ? Microsoft.AspNetCore.Http.CookieSecurePolicy.None : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+    options.Cookie.SameSite = builder.Environment.IsEnvironment("Testing") ? Microsoft.AspNetCore.Http.SameSiteMode.None : Microsoft.AspNetCore.Http.SameSiteMode.Strict;
+});
 
 // Configure security services
 builder.Services.AddMemoryCache(); // For rate limiting
@@ -376,29 +354,29 @@ builder.Services.AddCors(options =>
     // Development CORS - allow local development servers
     options.AddPolicy("DevelopmentCors", policy =>
     {
-        var devOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? 
-            new[] { 
-                "https://host-fe.platform.local:3002", 
+        var devOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ??
+            new[] {
+                "https://host-fe.platform.local:3002",
             };
-        
+
         policy.WithOrigins(devOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
-    
+
     // Production CORS - restrict to platform domains
     options.AddPolicy("ProductionCors", policy =>
     {
-        var prodOrigins = builder.Configuration.GetSection("Cors:ProductionOrigins").Get<string[]>() ?? 
-            new[] { 
-                "https://platform.com", 
-                "https://app.platform.com", 
-                "https://api.platform.com", 
+        var prodOrigins = builder.Configuration.GetSection("Cors:ProductionOrigins").Get<string[]>() ??
+            new[] {
+                "https://platform.com",
+                "https://app.platform.com",
+                "https://api.platform.com",
                 "https://admin.platform.com",
                 "https://auth.platform.com"
             };
-            
+
         policy.WithOrigins(prodOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -411,29 +389,29 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Add cookie policy AFTER security headers/rate limiting and BEFORE IdentityServer
-app.UseCookiePolicy(new CookiePolicyOptions
-{
-    // Enforce at least Lax for all cookies in dev
-    MinimumSameSitePolicy = SameSiteMode.Lax,
-    OnAppendCookie = ctx =>
-    {
-        if (app.Environment.IsDevelopment())
-        {
-            if (ctx.CookieOptions.SameSite == SameSiteMode.None)
-                ctx.CookieOptions.SameSite = SameSiteMode.Lax;
-            ctx.CookieOptions.Secure = false; // allow over http in dev
-        }
-    },
-    OnDeleteCookie = ctx =>
-    {
-        if (app.Environment.IsDevelopment())
-        {
-            if (ctx.CookieOptions.SameSite == SameSiteMode.None)
-                ctx.CookieOptions.SameSite = SameSiteMode.Lax;
-            ctx.CookieOptions.Secure = false;
-        }
-    }
-});
+// app.UseCookiePolicy(new CookiePolicyOptions
+// {
+//     // Enforce at least Lax for all cookies in dev
+//     MinimumSameSitePolicy = SameSiteMode.Lax,
+//     OnAppendCookie = ctx =>
+//     {
+//         if (app.Environment.IsDevelopment())
+//         {
+//             if (ctx.CookieOptions.SameSite == SameSiteMode.None)
+//                 ctx.CookieOptions.SameSite = SameSiteMode.Lax;
+//             ctx.CookieOptions.Secure = false; // allow over http in dev
+//         }
+//     },
+//     OnDeleteCookie = ctx =>
+//     {
+//         if (app.Environment.IsDevelopment())
+//         {
+//             if (ctx.CookieOptions.SameSite == SameSiteMode.None)
+//                 ctx.CookieOptions.SameSite = SameSiteMode.Lax;
+//             ctx.CookieOptions.Secure = false;
+//         }
+//     }
+// });
 
 // Add Serilog request logging
 app.UseSerilogRequestLogging(options =>

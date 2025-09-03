@@ -10,8 +10,22 @@ using PlatformBff.Services.Tenant;
 using PlatformBff.Repositories;
 using StackExchange.Redis;
 using PlatformBff.Middleware;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.AddServerHeader = false;
+        options.Limits.MinRequestBodyDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+        options.Limits.MinResponseDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+#if DEBUG
+        options.ConfigureEndpoints(builder.Configuration);
+#endif
+    });
+}
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -43,14 +57,14 @@ if (builder.Environment.EnvironmentName != "Testing")
     var redisConnection = builder.Configuration.GetConnectionString("Redis");
     if (!string.IsNullOrEmpty(redisConnection))
     {
-        builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+        builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
             ConnectionMultiplexer.Connect(redisConnection));
         builder.Services.AddStackExchangeRedisCache(options =>
         {
             options.Configuration = redisConnection;
             options.InstanceName = "PlatformBff";
         });
-        
+
         // Configure Data Protection with Redis for distributed key storage
         var redis = ConnectionMultiplexer.Connect(redisConnection);
         builder.Services.AddDataProtection()
@@ -88,7 +102,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.Name = "platform.session";
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsEnvironment("Testing") ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
 });
 
 // Add Authentication services
@@ -111,7 +125,7 @@ builder.Services.AddAuthentication(options =>
     options.LoginPath = "/api/auth/login";
     options.LogoutPath = "/api/auth/logout";
     options.AccessDeniedPath = "/api/auth/access-denied";
-    
+
     options.Events = new CookieAuthenticationEvents
     {
         OnValidatePrincipal = async context =>
@@ -134,23 +148,23 @@ builder.Services.AddAuthentication(options =>
     options.ResponseMode = OpenIdConnectResponseMode.Query; // Use query mode instead of form_post
     options.SaveTokens = true;
     options.GetClaimsFromUserInfoEndpoint = true;
-    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing");
-    
+    options.RequireHttpsMetadata = !builder.Environment.IsEnvironment("Testing");
+
     // Explicitly set the callback path
     options.CallbackPath = builder.Configuration["Authentication:CallbackPath"] ?? "/signin-oidc";
-    
+
     // Scopes
     options.Scope.Clear();
     options.Scope.Add("openid");
     options.Scope.Add("profile");
     options.Scope.Add("email");
     options.Scope.Add("offline_access");
-    
+
     // Map claims
     options.ClaimActions.MapJsonKey("preferred_username", "preferred_username");
     options.ClaimActions.MapJsonKey("email", "email");
     options.ClaimActions.MapJsonKey("name", "name");
-    
+
     // Configure events
     options.Events = new OpenIdConnectEvents
     {
@@ -159,30 +173,30 @@ builder.Services.AddAuthentication(options =>
             // Debug state parameter - safely check both query and form
             var state = context.Request.Query["state"].FirstOrDefault();
             var code = context.Request.Query["code"].FirstOrDefault();
-            
+
             // Only try to read form if it's a POST with proper content type
-            if (context.Request.Method == "POST" && 
-                context.Request.HasFormContentType && 
+            if (context.Request.Method == "POST" &&
+                context.Request.HasFormContentType &&
                 context.Request.Form != null)
             {
                 state = state ?? context.Request.Form["state"].FirstOrDefault();
                 code = code ?? context.Request.Form["code"].FirstOrDefault();
             }
-            
+
             var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
             logger?.LogInformation(
-                "OIDC Callback received: Method={Method}, State={State}, Code={Code}, HasState={HasState}, Path={Path}", 
+                "OIDC Callback received: Method={Method}, State={State}, Code={Code}, HasState={HasState}, Path={Path}",
                 context.Request.Method,
-                state?.Substring(0, Math.Min(50, state?.Length ?? 0)) + "...", 
+                state?.Substring(0, Math.Min(50, state?.Length ?? 0)) + "...",
                 code?.Substring(0, Math.Min(10, code?.Length ?? 0)) + "...",
                 !string.IsNullOrEmpty(state),
                 context.Request.Path);
-                
+
             // If this is a duplicate callback or missing state, handle gracefully
             if (string.IsNullOrEmpty(state))
             {
                 logger?.LogWarning("Callback with missing state - likely duplicate request");
-                
+
                 // Check if user is already authenticated - if so, redirect to frontend
                 if (context.HttpContext.User?.Identity?.IsAuthenticated == true)
                 {
@@ -192,14 +206,14 @@ builder.Services.AddAuthentication(options =>
                     context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl=/");
                     return Task.CompletedTask;
                 }
-                
+
                 // If not authenticated and no state, something is wrong - redirect to login
                 context.HandleResponse();
                 var frontendUrl2 = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
                 context.Response.Redirect($"{frontendUrl2}/login?error=invalid_state");
                 return Task.CompletedTask;
             }
-                
+
             return Task.CompletedTask;
         },
         OnAuthenticationFailed = context =>
@@ -214,23 +228,23 @@ builder.Services.AddAuthentication(options =>
             {
                 var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
                 var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
-                
+
                 // Store tokens in Redis after successful authentication
                 var sessionId = Guid.NewGuid().ToString();
-                
+
                 // Extract tokens from context
                 var accessToken = context.TokenEndpointResponse?.AccessToken;
                 var refreshToken = context.TokenEndpointResponse?.RefreshToken;
                 var idToken = context.TokenEndpointResponse?.IdToken;
                 var expiresIn = context.TokenEndpointResponse?.ExpiresIn;
-                
+
                 logger?.LogInformation("Token validation successful, storing session {SessionId}", sessionId);
-                
+
                 if (!string.IsNullOrEmpty(accessToken))
                 {
                     var expiration = DateTime.UtcNow.AddSeconds(
                         !string.IsNullOrEmpty(expiresIn) && int.TryParse(expiresIn, out var seconds) ? seconds : 3600);
-                    
+
                     // Store tokens
                     var tokenData = new PlatformBff.Models.TokenData
                     {
@@ -239,15 +253,15 @@ builder.Services.AddAuthentication(options =>
                         IdToken = idToken,
                         ExpiresAt = expiration
                     };
-                    
+
                     await sessionService.StoreTokensAsync(sessionId, tokenData);
-                    
+
                     // Extract user information
                     var principal = context.Principal;
-                    var userId = principal?.FindFirst("sub")?.Value ?? 
-                                principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? 
+                    var userId = principal?.FindFirst("sub")?.Value ??
+                                principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ??
                                 Guid.NewGuid().ToString();
-                    
+
                     var sessionData = new PlatformBff.Models.SessionData
                     {
                         SessionId = sessionId,
@@ -259,9 +273,9 @@ builder.Services.AddAuthentication(options =>
                         IpAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString(),
                         UserAgent = context.HttpContext.Request.Headers["User-Agent"].ToString()
                     };
-                    
+
                     await sessionService.StoreSessionDataAsync(sessionId, sessionData);
-                    
+
                     // Set session cookie
                     context.HttpContext.Response.Cookies.Append("platform.session", sessionId, new CookieOptions
                     {
@@ -271,12 +285,12 @@ builder.Services.AddAuthentication(options =>
                         Expires = expiration,
                         IsEssential = true
                     });
-                    
+
                     logger?.LogInformation("User {UserId} authenticated successfully with session {SessionId}", userId, sessionId);
                 }
-                
+
                 context.Properties!.SetString("session_id", sessionId);
-                
+
                 // Set a flag to indicate successful authentication processing
                 context.HttpContext.Items["AuthenticationProcessed"] = true;
             }
@@ -292,13 +306,13 @@ builder.Services.AddAuthentication(options =>
             // After successful authentication, redirect to frontend
             var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
             var returnUrl = context.Properties?.Items["returnUrl"] ?? "/";
-            
+
             logger?.LogInformation("Authentication completed successfully, redirecting to frontend");
-            
+
             var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
             context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
             context.HandleResponse();
-            
+
             return Task.CompletedTask;
         },
         OnRedirectToIdentityProviderForSignOut = context =>
@@ -315,7 +329,7 @@ builder.Services.AddAuthentication(options =>
         {
             var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
             logger?.LogError("OIDC RemoteFailure: {Error}", context.Failure?.Message);
-            
+
             // Use the error endpoint which will redirect to frontend gracefully
             context.Response.Redirect($"/api/auth/error?message={Uri.EscapeDataString(context.Failure?.Message ?? "Authentication failed")}");
             context.HandleResponse();
@@ -332,7 +346,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Add authorization handlers
-builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, 
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
     PlatformBff.Authorization.PlatformAdminAuthorizationHandler>();
 
 // Add CORS for development
@@ -354,29 +368,10 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseCors("DevelopmentPolicy");
-    
-    // Initialize database (skip in Testing environment)
-    if (app.Environment.EnvironmentName != "Testing")
-    {
-        try
-        {
-            await DatabaseSeeder.InitializeDatabaseAsync(app.Services, app.Environment);
-        }
-        catch (Exception ex)
-        {
-            var logger = app.Services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "Failed to initialize database");
-            if (app.Environment.IsDevelopment())
-            {
-                throw; // Fail fast in development
-            }
-            // In production, log but continue - database might be handled externally
-        }
-    }
 }
-else if (app.Environment.EnvironmentName != "Testing")
+
+if (app.Environment.EnvironmentName != "Testing")
 {
-    // In production, ensure database is initialized
     try
     {
         await DatabaseSeeder.InitializeDatabaseAsync(app.Services, app.Environment);
@@ -422,20 +417,20 @@ if (app.Environment.IsDevelopment())
             var db = redis.GetDatabase();
             var key = "test:ping";
             var value = DateTime.UtcNow.ToString("O");
-            
+
             // Set a test value
             await db.StringSetAsync(key, value, TimeSpan.FromSeconds(10));
-            
+
             // Read it back
             var result = await db.StringGetAsync(key);
-            
+
             // Check server info
             var endpoints = redis.GetEndPoints();
             var server = redis.GetServer(endpoints.First());
             var ping = await db.PingAsync();
-            
-            return Results.Ok(new 
-            { 
+
+            return Results.Ok(new
+            {
                 status = "connected",
                 message = "Redis is operational",
                 test_value = result.ToString(),
@@ -445,8 +440,8 @@ if (app.Environment.IsDevelopment())
         }
         catch (Exception ex)
         {
-            return Results.Ok(new 
-            { 
+            return Results.Ok(new
+            {
                 status = "error",
                 message = "Redis connection failed",
                 error = ex.Message
