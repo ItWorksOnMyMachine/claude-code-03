@@ -11,6 +11,7 @@ using PlatformBff.Repositories;
 using StackExchange.Redis;
 using PlatformBff.Middleware;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,6 +106,12 @@ builder.Services.AddSession(options =>
     options.Cookie.SecurePolicy = builder.Environment.IsEnvironment("Testing") ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
 });
 
+#if DEBUG
+var expiresTimeSpan = TimeSpan.FromDays(1);
+#else
+    var expiresTimeSpan = TimeSpan.FromMinutes(120);
+#endif
+
 // Add Authentication services
 builder.Services.AddAuthentication(options =>
 {
@@ -119,7 +126,8 @@ builder.Services.AddAuthentication(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.ExpireTimeSpan = TimeSpan.FromHours(2);
+    options.CookieManager = new ChunkingCookieManager();
+    options.ExpireTimeSpan = expiresTimeSpan;
     options.SlidingExpiration = true;
     options.Cookie.Domain = builder.Configuration["Authentication:CookieDomain"]; // Set domain if specified
     options.LoginPath = "/api/auth/login";
@@ -128,30 +136,51 @@ builder.Services.AddAuthentication(options =>
 
     options.Events = new CookieAuthenticationEvents
     {
-        OnValidatePrincipal = async context =>
+        OnValidatePrincipal = context =>
         {
-            // Will be used to validate session tokens from Redis
-            var sessionId = context.Properties.GetTokenValue("session_id");
-            if (string.IsNullOrEmpty(sessionId))
+            if (context.Principal == null)
             {
                 context.RejectPrincipal();
+                return Task.CompletedTask;
             }
-        }
+
+            // Will be used to validate session tokens from Redis
+            var sessionId = context.Principal.FindFirst("session_id")?.Value;
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                var claims = context.Principal.Claims.ToList();
+                claims.Add(new Claim("session_id", Guid.NewGuid().ToString()));
+                var identity = new ClaimsIdentity(claims, context.Principal.Identity.AuthenticationType);
+                var principal = new ClaimsPrincipal(identity);
+                context.ShouldRenew = true;
+                context.ReplacePrincipal(principal);
+            }
+
+            return Task.CompletedTask;
+        },
+        // OnSignedIn = (ctx) =>
+        // {
+        //     return Task.CompletedTask;
+        // },
     };
 })
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
+    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.SignOutScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
     options.Authority = builder.Configuration["Authentication:Authority"] ?? "https://login.platform.local:5214";
     options.ClientId = builder.Configuration["Authentication:ClientId"] ?? "platform-bff";
     options.ClientSecret = builder.Configuration["Authentication:ClientSecret"] ?? "platform-bff-secret";
+    //options.ResponseMode = OpenIdConnectResponseMode.Query; // Use query mode instead of form_post
     options.ResponseType = OpenIdConnectResponseType.Code;
-    options.ResponseMode = OpenIdConnectResponseMode.Query; // Use query mode instead of form_post
+    options.UsePkce = true;
     options.SaveTokens = true;
     options.GetClaimsFromUserInfoEndpoint = true;
     options.RequireHttpsMetadata = !builder.Environment.IsEnvironment("Testing");
 
     // Explicitly set the callback path
-    options.CallbackPath = builder.Configuration["Authentication:CallbackPath"] ?? "/signin-oidc";
+    //options.CallbackPath = builder.Configuration["Authentication:CallbackPath"] ?? "/signin-oidc";
 
     // Scopes
     options.Scope.Clear();
@@ -161,9 +190,9 @@ builder.Services.AddAuthentication(options =>
     options.Scope.Add("offline_access");
 
     // Map claims
-    options.ClaimActions.MapJsonKey("preferred_username", "preferred_username");
-    options.ClaimActions.MapJsonKey("email", "email");
-    options.ClaimActions.MapJsonKey("name", "name");
+    // options.ClaimActions.MapJsonKey("preferred_username", "preferred_username");
+    // options.ClaimActions.MapJsonKey("email", "email");
+    // options.ClaimActions.MapJsonKey("name", "name");
 
     // Configure events
     options.Events = new OpenIdConnectEvents
@@ -216,115 +245,115 @@ builder.Services.AddAuthentication(options =>
 
             return Task.CompletedTask;
         },
-        OnAuthenticationFailed = context =>
-        {
-            context.HttpContext.RequestServices.GetService<ILogger<Program>>()?.LogError(
-                "OIDC Authentication failed: {Error}", context.Exception?.Message);
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = async context =>
-        {
-            try
-            {
-                var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
-                var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+        // OnAuthenticationFailed = context =>
+        // {
+        //     context.HttpContext.RequestServices.GetService<ILogger<Program>>()?.LogError(
+        //         "OIDC Authentication failed: {Error}", context.Exception?.Message);
+        //     return Task.CompletedTask;
+        // },
+        // OnTokenValidated = async context =>
+        // {
+        //     try
+        //     {
+        //         var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
+        //         var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
 
-                // Store tokens in Redis after successful authentication
-                var sessionId = Guid.NewGuid().ToString();
+        //         // Store tokens in Redis after successful authentication
+        //         var sessionId = Guid.NewGuid().ToString();
 
-                // Extract tokens from context
-                var accessToken = context.TokenEndpointResponse?.AccessToken;
-                var refreshToken = context.TokenEndpointResponse?.RefreshToken;
-                var idToken = context.TokenEndpointResponse?.IdToken;
-                var expiresIn = context.TokenEndpointResponse?.ExpiresIn;
+        //         // Extract tokens from context
+        //         var accessToken = context.TokenEndpointResponse?.AccessToken;
+        //         var refreshToken = context.TokenEndpointResponse?.RefreshToken;
+        //         var idToken = context.TokenEndpointResponse?.IdToken;
+        //         var expiresIn = context.TokenEndpointResponse?.ExpiresIn;
 
-                logger?.LogInformation("Token validation successful, storing session {SessionId}", sessionId);
+        //         logger?.LogInformation("Token validation successful, storing session {SessionId}", sessionId);
 
-                if (!string.IsNullOrEmpty(accessToken))
-                {
-                    var expiration = DateTime.UtcNow.AddSeconds(
-                        !string.IsNullOrEmpty(expiresIn) && int.TryParse(expiresIn, out var seconds) ? seconds : 3600);
+        //         if (!string.IsNullOrEmpty(accessToken))
+        //         {
+        //             var expiration = DateTime.UtcNow.AddSeconds(
+        //                 !string.IsNullOrEmpty(expiresIn) && int.TryParse(expiresIn, out var seconds) ? seconds : 3600);
 
-                    // Store tokens
-                    var tokenData = new PlatformBff.Models.TokenData
-                    {
-                        AccessToken = accessToken,
-                        RefreshToken = refreshToken,
-                        IdToken = idToken,
-                        ExpiresAt = expiration
-                    };
+        //             // Store tokens
+        //             var tokenData = new PlatformBff.Models.TokenData
+        //             {
+        //                 AccessToken = accessToken,
+        //                 RefreshToken = refreshToken,
+        //                 IdToken = idToken,
+        //                 ExpiresAt = expiration
+        //             };
 
-                    await sessionService.StoreTokensAsync(sessionId, tokenData);
+        //             await sessionService.StoreTokensAsync(sessionId, tokenData);
 
-                    // Extract user information
-                    var principal = context.Principal;
-                    var userId = principal?.FindFirst("sub")?.Value ??
-                                principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ??
-                                Guid.NewGuid().ToString();
+        //             // Extract user information
+        //             var principal = context.Principal;
+        //             var userId = principal?.FindFirst("sub")?.Value ??
+        //                         principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ??
+        //                         Guid.NewGuid().ToString();
 
-                    var sessionData = new PlatformBff.Models.SessionData
-                    {
-                        SessionId = sessionId,
-                        UserId = userId,
-                        Username = principal?.FindFirst("name")?.Value,
-                        Email = principal?.FindFirst("email")?.Value,
-                        ExpiresAt = expiration,
-                        Claims = principal?.Claims.ToDictionary(c => c.Type, c => c.Value) ?? new Dictionary<string, string>(),
-                        IpAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString(),
-                        UserAgent = context.HttpContext.Request.Headers["User-Agent"].ToString()
-                    };
+        //             var sessionData = new PlatformBff.Models.SessionData
+        //             {
+        //                 SessionId = sessionId,
+        //                 UserId = userId,
+        //                 Username = principal?.FindFirst("name")?.Value,
+        //                 Email = principal?.FindFirst("email")?.Value,
+        //                 ExpiresAt = expiration,
+        //                 Claims = principal?.Claims.ToDictionary(c => c.Type, c => c.Value) ?? new Dictionary<string, string>(),
+        //                 IpAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+        //                 UserAgent = context.HttpContext.Request.Headers["User-Agent"].ToString()
+        //             };
 
-                    await sessionService.StoreSessionDataAsync(sessionId, sessionData);
+        //             await sessionService.StoreSessionDataAsync(sessionId, sessionData);
 
-                    // Set session cookie
-                    context.HttpContext.Response.Cookies.Append("platform.session", sessionId, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = false, // Allow HTTP in development
-                        SameSite = SameSiteMode.Lax,
-                        Expires = expiration,
-                        IsEssential = true
-                    });
+        //             // Set session cookie
+        //             context.HttpContext.Response.Cookies.Append("platform.session", sessionId, new CookieOptions
+        //             {
+        //                 HttpOnly = true,
+        //                 Secure = false, // Allow HTTP in development
+        //                 SameSite = SameSiteMode.Lax,
+        //                 Expires = expiration,
+        //                 IsEssential = true
+        //             });
 
-                    logger?.LogInformation("User {UserId} authenticated successfully with session {SessionId}", userId, sessionId);
-                }
+        //             logger?.LogInformation("User {UserId} authenticated successfully with session {SessionId}", userId, sessionId);
+        //         }
 
-                context.Properties!.SetString("session_id", sessionId);
+        //         context.Properties!.SetString("session_id", sessionId);
 
-                // Set a flag to indicate successful authentication processing
-                context.HttpContext.Items["AuthenticationProcessed"] = true;
-            }
-            catch (Exception ex)
-            {
-                var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
-                logger?.LogError(ex, "Error during token validation");
-                throw;
-            }
-        },
-        OnTicketReceived = context =>
-        {
-            // After successful authentication, redirect to frontend
-            var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
-            var returnUrl = context.Properties?.Items["returnUrl"] ?? "/";
+        //         // Set a flag to indicate successful authentication processing
+        //         context.HttpContext.Items["AuthenticationProcessed"] = true;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+        //         logger?.LogError(ex, "Error during token validation");
+        //         throw;
+        //     }
+        // },
+        // OnTicketReceived = context =>
+        // {
+        //     // After successful authentication, redirect to frontend
+        //     var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
+        //     var returnUrl = context.Properties?.Items["returnUrl"] ?? "/";
 
-            logger?.LogInformation("Authentication completed successfully, redirecting to frontend");
+        //     logger?.LogInformation("Authentication completed successfully, redirecting to frontend");
 
-            var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
-            context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
-            context.HandleResponse();
+        //     var frontendUrl = context.HttpContext.RequestServices.GetService<IConfiguration>()?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
+        //     context.Response.Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
+        //     context.HandleResponse();
 
-            return Task.CompletedTask;
-        },
-        OnRedirectToIdentityProviderForSignOut = context =>
-        {
-            // Clear session from Redis on sign out
-            var sessionId = context.Properties?.GetString("session_id");
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                // Session cleanup will be implemented with ISessionService
-            }
-            return Task.CompletedTask;
-        },
+        //     return Task.CompletedTask;
+        // },
+        // OnRedirectToIdentityProviderForSignOut = context =>
+        // {
+        //     // Clear session from Redis on sign out
+        //     var sessionId = context.Properties?.GetString("session_id");
+        //     if (!string.IsNullOrEmpty(sessionId))
+        //     {
+        //         // Session cleanup will be implemented with ISessionService
+        //     }
+        //     return Task.CompletedTask;
+        // },
         OnRemoteFailure = context =>
         {
             var logger = context.HttpContext.RequestServices.GetService<ILogger<Program>>();
@@ -334,7 +363,7 @@ builder.Services.AddAuthentication(options =>
             context.Response.Redirect($"/api/auth/error?message={Uri.EscapeDataString(context.Failure?.Message ?? "Authentication failed")}");
             context.HandleResponse();
             return Task.CompletedTask;
-        }
+        },
     };
 });
 

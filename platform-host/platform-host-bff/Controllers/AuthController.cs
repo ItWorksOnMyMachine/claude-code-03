@@ -39,9 +39,9 @@ public class AuthController : ControllerBase
     public Task<IActionResult> Login([FromBody] LoginRequest? request = null)
     {
         var returnUrl = request?.ReturnUrl ?? "/";
-        
+
         _logger.LogInformation("Login initiated with return URL: {ReturnUrl}", returnUrl);
-        
+
         // For API calls, return the auth URL instead of Challenge
         if (Request.Headers["Accept"].ToString().Contains("application/json"))
         {
@@ -53,15 +53,15 @@ public class AuthController : ControllerBase
                     ["returnUrl"] = returnUrl
                 }
             };
-            
+
             var authUrl = $"{Request.Scheme}://{Request.Host}/api/auth/challenge?returnUrl={Uri.EscapeDataString(returnUrl)}";
-            
+
             return Task.FromResult<IActionResult>(Ok(new LoginResponse
             {
                 RedirectUrl = authUrl
             }));
         }
-        
+
         // For browser requests, return Challenge
         var challengeProperties = new AuthenticationProperties
         {
@@ -71,7 +71,7 @@ public class AuthController : ControllerBase
                 ["returnUrl"] = returnUrl
             }
         };
-        
+
         return Task.FromResult<IActionResult>(Challenge(challengeProperties, OpenIdConnectDefaults.AuthenticationScheme));
     }
 
@@ -89,7 +89,7 @@ public class AuthController : ControllerBase
                 ["returnUrl"] = returnUrl
             }
         };
-        
+
         return Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
@@ -101,18 +101,18 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Logout()
     {
         var sessionId = Request.Cookies["platform.session"];
-        
+
         if (!string.IsNullOrEmpty(sessionId))
         {
             // Revoke tokens at the authorization server
             await _sessionService.RevokeTokensAsync(sessionId);
-            
+
             // Remove session from Redis
             await _sessionService.RemoveSessionAsync(sessionId);
-            
+
             _logger.LogInformation("Session {SessionId} removed and tokens revoked", sessionId);
         }
-        
+
         return SignOut(
             new AuthenticationProperties { RedirectUri = "/" },
             CookieAuthenticationDefaults.AuthenticationScheme,
@@ -129,35 +129,35 @@ public class AuthController : ControllerBase
         {
             // Authenticate the incoming request
             var authResult = await HttpContext.AuthenticateAsync(OpenIdConnectDefaults.AuthenticationScheme);
-            
+
             if (!authResult.Succeeded)
             {
                 _logger.LogWarning("Authentication callback failed: {Error}", authResult.Failure?.Message);
                 return Redirect("/login?error=auth_failed");
             }
-            
+
             var principal = authResult.Principal;
             var sessionId = Guid.NewGuid().ToString();
-            
+
             // Extract tokens from authentication result
             var accessToken = authResult.Properties?.GetTokenValue(OpenIdConnectParameterNames.AccessToken);
             var refreshToken = authResult.Properties?.GetTokenValue(OpenIdConnectParameterNames.RefreshToken);
             var idToken = authResult.Properties?.GetTokenValue(OpenIdConnectParameterNames.IdToken);
             var expiresAt = authResult.Properties?.GetTokenValue("expires_at");
-            
+
             if (string.IsNullOrEmpty(accessToken))
             {
                 _logger.LogError("No access token received in callback");
                 return Redirect("/login?error=no_token");
             }
-            
+
             // Parse expiration
             var expiration = DateTime.UtcNow.AddHours(1); // Default
             if (!string.IsNullOrEmpty(expiresAt) && long.TryParse(expiresAt, out var expiresAtUnix))
             {
                 expiration = DateTimeOffset.FromUnixTimeSeconds(expiresAtUnix).UtcDateTime;
             }
-            
+
             // Store tokens
             var tokenData = new TokenData
             {
@@ -166,14 +166,14 @@ public class AuthController : ControllerBase
                 IdToken = idToken,
                 ExpiresAt = expiration
             };
-            
+
             await _sessionService.StoreTokensAsync(sessionId, tokenData);
-            
+
             // Extract user information
-            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? 
-                        principal.FindFirst("sub")?.Value ?? 
+            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                        principal.FindFirst("sub")?.Value ??
                         Guid.NewGuid().ToString();
-            
+
             var sessionData = new SessionData
             {
                 SessionId = sessionId,
@@ -185,9 +185,9 @@ public class AuthController : ControllerBase
                 IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = Request.Headers["User-Agent"].ToString()
             };
-            
+
             await _sessionService.StoreSessionDataAsync(sessionId, sessionData);
-            
+
             // Set session cookie
             Response.Cookies.Append("platform.session", sessionId, new CookieOptions
             {
@@ -197,14 +197,14 @@ public class AuthController : ControllerBase
                 Expires = expiration,
                 IsEssential = true
             });
-            
+
             _logger.LogInformation("User {UserId} authenticated successfully", userId);
-            
+
             // Redirect to return URL - redirect to frontend callback page
-            var returnUrl = HttpContext.Items["returnUrl"]?.ToString() ?? 
-                           authResult.Properties?.Items["returnUrl"] ?? 
+            var returnUrl = HttpContext.Items["returnUrl"]?.ToString() ??
+                           authResult.Properties?.Items["returnUrl"] ??
                            "/";
-            
+
             // Redirect to frontend with auth callback indicator
             var frontendUrl = _configuration?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
             return Redirect($"{frontendUrl}/auth/callback?auth_callback=true&returnUrl={Uri.EscapeDataString(returnUrl)}");
@@ -222,47 +222,30 @@ public class AuthController : ControllerBase
     [HttpGet("session")]
     public async Task<IActionResult> GetSession()
     {
-        var sessionId = Request.Cookies["platform.session"];
-        
-        if (string.IsNullOrEmpty(sessionId))
-        {
-            return Unauthorized();
-        }
-        
-        var isValid = await _sessionService.IsSessionValidAsync(sessionId);
-        if (!isValid)
-        {
-            Response.Cookies.Delete("platform.session");
-            return Unauthorized();
-        }
-        
-        var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
-        {
-            return Unauthorized();
-        }
-        
+        var IsAuthenticated = User.Identity?.IsAuthenticated ?? false;
         var response = new SessionResponse
         {
-            IsAuthenticated = true,
-            User = new UserInfo
+            IsAuthenticated = IsAuthenticated,
+            User = IsAuthenticated ? new UserInfo
             {
-                Id = sessionData.UserId,
-                Email = sessionData.Email,
-                Name = sessionData.Username,
-                Claims = sessionData.Claims ?? new Dictionary<string, string>()
-            },
-            ExpiresAt = sessionData.ExpiresAt,
-            // Include tenant information if selected
-            SelectedTenant = sessionData.SelectedTenantId.HasValue ? new TenantInfo
-            {
-                Id = sessionData.SelectedTenantId.Value,
-                Name = sessionData.SelectedTenantName ?? "Unknown",
-                UserRoles = sessionData.TenantRoles,
-                IsPlatformAdmin = sessionData.IsPlatformAdmin
-            } : null
+                Id = User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value,
+                Email = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value,
+                Name = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value,
+                Claims = User.Claims.ToDictionary(c => c.Type, c => c.Value)
+            } : null,
+            // ExpiresAt = sessionData.ExpiresAt,
+            // // Include tenant information if selected
+            // SelectedTenant = sessionData.SelectedTenantId.HasValue ? new TenantInfo
+            // {
+            //     Id = sessionData.SelectedTenantId.Value,
+            //     Name = sessionData.SelectedTenantName ?? "Unknown",
+            //     UserRoles = sessionData.TenantRoles,
+            //     IsPlatformAdmin = sessionData.IsPlatformAdmin
+            // } : null
         };
-        
+
+        await Task.CompletedTask;
+
         return Ok(response);
     }
 
@@ -273,52 +256,52 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RefreshToken()
     {
         var sessionId = Request.Cookies["platform.session"];
-        
+
         if (string.IsNullOrEmpty(sessionId))
         {
             return Unauthorized();
         }
-        
+
         var isValid = await _sessionService.IsSessionValidAsync(sessionId);
         if (!isValid)
         {
             Response.Cookies.Delete("platform.session");
             return Unauthorized();
         }
-        
+
         var tokens = await _sessionService.GetTokensAsync(sessionId);
         if (tokens == null || string.IsNullOrEmpty(tokens.RefreshToken))
         {
             _logger.LogWarning("No refresh token available for session {SessionId}", sessionId);
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "No refresh token available",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
-        
+
         try
         {
             // TODO: Implement actual token refresh with OIDC provider
             // For now, we'll just extend the session
             await _sessionService.ExtendSessionAsync(sessionId, TimeSpan.FromHours(1));
-            
+
             var response = new RefreshTokenResponse
             {
                 Success = true,
                 ExpiresAt = DateTime.UtcNow.AddHours(1)
             };
-            
+
             return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to refresh token for session {SessionId}", sessionId);
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Token refresh failed",
                 Details = ex.Message,
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -339,7 +322,7 @@ public class AuthController : ControllerBase
     public IActionResult Error([FromQuery] string? message = null)
     {
         _logger.LogWarning("Authentication error: {Message}", message);
-        
+
         // Instead of showing error, redirect to frontend with error parameter
         var frontendUrl = _configuration?["Frontend:Url"] ?? "https://host-fe.platform.local:3002";
         return Redirect($"{frontendUrl}/login?error=auth_failed&details={Uri.EscapeDataString(message ?? "")}");
