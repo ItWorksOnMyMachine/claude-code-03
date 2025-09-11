@@ -11,9 +11,7 @@ public class TenantContext : ITenantContext
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ISessionService _sessionService;
-    private SessionData? _sessionData;
-    private bool _sessionLoaded = false;
-    
+
     // Fixed GUID for platform administration tenant
     public static readonly Guid PlatformTenantId = new Guid("00000000-0000-0000-0000-000000000001");
 
@@ -23,60 +21,56 @@ public class TenantContext : ITenantContext
         _sessionService = sessionService;
     }
 
-    private async Task<SessionData?> GetSessionDataAsync()
+    private async Task<string?> GetSessionDataAsync(string name)
     {
-        if (_sessionLoaded)
-            return _sessionData;
-
         var httpContext = _httpContextAccessor.HttpContext;
         if (httpContext == null)
             return null;
 
-        var sessionId = httpContext.Request.Cookies["platform.session"];
+        var sessionId = httpContext.User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
             return null;
 
-        _sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        _sessionLoaded = true;
-        return _sessionData;
+        var sessionDataResult = await _sessionService.GetSessionDataAsync(sessionId, name);
+
+        return sessionDataResult.HasValue ? sessionDataResult.Value : null;
     }
 
-    public Guid? GetCurrentTenantId()
+    public async Task<Guid?> GetCurrentTenantIdAsync()
     {
-        var sessionData = GetSessionDataAsync().GetAwaiter().GetResult();
-        return sessionData?.SelectedTenantId;
+        var sessionData = await GetSessionDataAsync(nameof(PlatformBffSessionKeys.SelectedTenantId));
+        if (sessionData == null)
+            return null;
+
+        if (Guid.TryParse(sessionData, out var tenantId))
+            return tenantId;
+
+        return null;
     }
 
-    public void SetTenant(Guid tenantId)
+    public Task SetTenant(Guid tenantId)
     {
         // This method is kept for backward compatibility but shouldn't be used
         // Tenant selection should go through the TenantController
         throw new NotSupportedException("Use TenantController.SelectTenant to change tenant context");
     }
 
-    public void ClearTenant()
+    public Task ClearTenant()
     {
         // This method is kept for backward compatibility but shouldn't be used
         // Tenant clearing should go through the TenantController
         throw new NotSupportedException("Use TenantController.ClearTenantSelection to clear tenant context");
     }
 
-    public bool IsPlatformTenant()
+    public async Task<bool> IsPlatformTenant()
     {
-        var tenantId = GetCurrentTenantId();
+        var tenantId = await GetCurrentTenantIdAsync();
         return tenantId.HasValue && tenantId.Value == PlatformTenantId;
     }
 
-    public string? GetCurrentUserId()
+    public async Task<string?> GetCurrentUserId()
     {
-        var sessionData = GetSessionDataAsync().GetAwaiter().GetResult();
-        return sessionData?.UserId;
-    }
-
-    public void SetUserId(string userId)
-    {
-        // This method is kept for backward compatibility but shouldn't be used
-        // User ID comes from authentication
-        throw new NotSupportedException("User ID is set during authentication and cannot be changed");
+        var userId = await GetSessionDataAsync(nameof(PlatformBffSessionKeys.UserId));
+        return userId;
     }
 }

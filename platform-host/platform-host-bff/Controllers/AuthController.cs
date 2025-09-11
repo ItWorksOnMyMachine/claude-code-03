@@ -100,7 +100,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Logout()
     {
-        var sessionId = Request.Cookies["platform.session"];
+        var sessionId = User.FindFirst("session_id")?.Value;
 
         if (!string.IsNullOrEmpty(sessionId))
         {
@@ -174,29 +174,7 @@ public class AuthController : ControllerBase
                         principal.FindFirst("sub")?.Value ??
                         Guid.NewGuid().ToString();
 
-            var sessionData = new SessionData
-            {
-                SessionId = sessionId,
-                UserId = userId,
-                Username = principal.FindFirst(ClaimTypes.Name)?.Value ?? principal.FindFirst("name")?.Value,
-                Email = principal.FindFirst(ClaimTypes.Email)?.Value ?? principal.FindFirst("email")?.Value,
-                ExpiresAt = expiration,
-                Claims = principal.Claims.ToDictionary(c => c.Type, c => c.Value),
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = Request.Headers["User-Agent"].ToString()
-            };
-
-            await _sessionService.StoreSessionDataAsync(sessionId, sessionData);
-
-            // Set session cookie
-            Response.Cookies.Append("platform.session", sessionId, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Lax,
-                Expires = expiration,
-                IsEssential = true
-            });
+            await _sessionService.StoreSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId), userId);
 
             _logger.LogInformation("User {UserId} authenticated successfully", userId);
 
@@ -255,17 +233,10 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken()
     {
-        var sessionId = Request.Cookies["platform.session"];
+        var sessionId = User.FindFirst("session_id")?.Value;
 
         if (string.IsNullOrEmpty(sessionId))
         {
-            return Unauthorized();
-        }
-
-        var isValid = await _sessionService.IsSessionValidAsync(sessionId);
-        if (!isValid)
-        {
-            Response.Cookies.Delete("platform.session");
             return Unauthorized();
         }
 
@@ -280,30 +251,9 @@ public class AuthController : ControllerBase
             });
         }
 
-        try
-        {
-            // TODO: Implement actual token refresh with OIDC provider
-            // For now, we'll just extend the session
-            await _sessionService.ExtendSessionAsync(sessionId, TimeSpan.FromHours(1));
+        // TODO: Implement actual token refresh with OIDC provider
 
-            var response = new RefreshTokenResponse
-            {
-                Success = true,
-                ExpiresAt = DateTime.UtcNow.AddHours(1)
-            };
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to refresh token for session {SessionId}", sessionId);
-            return StatusCode(500, new ErrorResponse
-            {
-                Error = "Token refresh failed",
-                Details = ex.Message,
-                StatusCode = 500
-            });
-        }
+        return NoContent();
     }
 
     /// <summary>

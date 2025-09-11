@@ -340,8 +340,8 @@ public class TenantContextMiddleware
             return;
         }
 
-        // Extract session from cookie
-        var sessionId = context.Request.Cookies["platform.session"];
+        // Extract session from auth ticket
+        var sessionId = context.User.FindFirst("session_id")?.Value;
         if (!string.IsNullOrEmpty(sessionId))
         {
             var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
@@ -378,7 +378,7 @@ public class PlatformAdminFilter : IAsyncAuthorizationFilter
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
         // Extract session and verify platform admin status
-        var sessionId = context.HttpContext.Request.Cookies["platform.session"];
+        var sessionId = context.HttpContext.User.FindFirst("session_id")?.Value;
         var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
         
         if (!sessionData?.IsPlatformAdmin == true)

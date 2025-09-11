@@ -44,7 +44,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
         // Use a unique but stable database name for this factory instance
         var testId = Interlocked.Increment(ref _testCounter);
         var dbName = $"TestDb_{testId}";
-        
+
         return _factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
@@ -53,7 +53,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                 // Remove existing DbContext registration
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
                 if (descriptor != null) services.Remove(descriptor);
-                
+
                 // Replace database with in-memory using the stable name
                 services.AddDbContext<PlatformDbContext>(options =>
                 {
@@ -65,13 +65,13 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                 // Mock session service
                 var sessionService = new TestSessionService(isPlatformAdmin);
                 services.AddSingleton<ISessionService>(sessionService);
-                
+
                 // Mock tenant service for platform admin check
                 var tenantServiceMock = new Mock<ITenantService>();
                 tenantServiceMock.Setup(x => x.IsPlatformAdminAsync(It.IsAny<string>()))
                     .ReturnsAsync(isPlatformAdmin);
                 services.AddScoped<ITenantService>(_ => tenantServiceMock.Object);
-                
+
                 // Add test authentication handler to bypass auth
                 services.AddAuthentication(options =>
                 {
@@ -79,7 +79,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                     options.DefaultChallengeScheme = "Test";
                 })
                 .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
-                
+
                 // Configure static OIDC configuration to avoid network calls
                 services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
                 {
@@ -97,14 +97,14 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                     // Use static configuration manager to prevent metadata fetching
                     options.Configuration = config;
                     options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(config);
-                    
+
                     // Ensure events are initialized
                     options.Events ??= new OpenIdConnectEvents();
                 });
             });
         });
     }
-   
+
     [Fact]
     public async Task GetAllTenants_WithoutPlatformAdmin_ReturnsUnauthorized()
     {
@@ -138,7 +138,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
             Console.WriteLine($"Response Status: {response.StatusCode}");
             Console.WriteLine($"Response Content: {errorContent}");
         }
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var content = await response.Content.ReadAsStringAsync();
         content.Should().NotBeNull();
@@ -267,7 +267,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
 
         // Act
         var response = await client.PostAsync(
-            $"/api/admin/tenant/{tenant!.Id}/users?userId=test-user-123&email=test@example.com&role=Admin", 
+            $"/api/admin/tenant/{tenant!.Id}/users?userId=test-user-123&email=test@example.com&role=Admin",
             null);
 
         // Assert
@@ -307,24 +307,16 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
     private class TestSessionService : ISessionService
     {
         private readonly bool _isPlatformAdmin;
-        private readonly Dictionary<string, SessionData> _sessions = new();
+        private readonly Dictionary<string, string> _sessionData = new();
         private readonly Dictionary<string, TokenData> _tokens = new();
 
         public TestSessionService(bool isPlatformAdmin)
         {
             _isPlatformAdmin = isPlatformAdmin;
-            
-            // Create test session
-            _sessions["test-session"] = new SessionData
-            {
-                SessionId = "test-session",
-                UserId = "test-admin-user",
-                Email = "admin@platform.com",
-                IsPlatformAdmin = _isPlatformAdmin,
-                SelectedTenantId = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001") : null,
-                SelectedTenantName = _isPlatformAdmin ? "Platform" : null
-            };
-            
+
+            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.UserId)}"] = "test-admin-user";
+            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.SelectedTenantId)}"] = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : null;
+
             _tokens["test-session"] = new TokenData
             {
                 AccessToken = "test-token",
@@ -346,21 +338,19 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
             return Task.FromResult(tokens);
         }
 
-        public Task<bool> IsSessionValidAsync(string sessionId)
+        public Task RemoveSessionAsync(string sessionId)
         {
-            return Task.FromResult(_sessions.ContainsKey(sessionId));
-        }
+            var keysToRemove = _sessionData.Keys.Where(k => k.StartsWith(sessionId + ":"));
+            foreach (var key in keysToRemove)
+                _sessionData.Remove(key);
 
-        public Task ExtendSessionAsync(string sessionId, TimeSpan extension)
-        {
-            // For testing, we don't need to track expiry
+            _tokens.Remove(sessionId);
             return Task.CompletedTask;
         }
 
-        public Task RemoveSessionAsync(string sessionId)
+        public Task RemoveSessionDataAsync(string sessionId, string name)
         {
-            _sessions.Remove(sessionId);
-            _tokens.Remove(sessionId);
+            _sessionData.Remove($"test-session:{sessionId}:{name}");
             return Task.CompletedTask;
         }
 
@@ -387,21 +377,17 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
             return Task.CompletedTask;
         }
 
-        public Task StoreSessionDataAsync(string sessionId, SessionData sessionData)
+        public Task<HasValueOrMissingResult<string>> GetSessionDataAsync(string sessionId, string name)
         {
-            _sessions[sessionId] = sessionData;
-            return Task.CompletedTask;
+            _sessionData.TryGetValue($"{sessionId}:{name}", out var sessionData);
+            return Task.FromResult(sessionData != null
+                ? HasValueOrMissingResult<string>.SetValue(sessionData.GetType().GetProperty(name)?.GetValue(sessionData)?.ToString() ?? "")
+                : HasValueOrMissingResult<string>.SetMissing());
         }
 
-        public Task<SessionData?> GetSessionDataAsync(string sessionId)
+        public Task StoreSessionDataAsync(string sessionId, string name, string data, DateTimeOffset? expiresAt = null)
         {
-            _sessions.TryGetValue(sessionId, out var session);
-            return Task.FromResult(session);
-        }
-
-        public Task UpdateSessionDataAsync(string sessionId, SessionData sessionData)
-        {
-            _sessions[sessionId] = sessionData;
+            _sessionData[$"{sessionId}:{name}"] = data;
             return Task.CompletedTask;
         }
     }

@@ -12,7 +12,7 @@ public class TenantService : ITenantService
 {
     // Fixed GUID for platform administration tenant
     private static readonly Guid PLATFORM_TENANT_ID = Guid.Parse("00000000-0000-0000-0000-000000000001");
-    
+
     private readonly PlatformDbContext _context;
     private readonly ITenantRepository _tenantRepository;
     private readonly ITenantUserRepository _tenantUserRepository;
@@ -52,7 +52,7 @@ public class TenantService : ITenantService
                 IsPlatformTenant = tu.Tenant.IsPlatformTenant,
                 CreatedAt = tu.Tenant.CreatedAt.DateTime,
                 LogoUrl = null,
-                UserRole = tu.UserRoles.FirstOrDefault()?.Role?.Name ?? "User"
+                UserRoles = tu.UserRoles.Select(ur => ur.Role.Name).ToList()
             }).ToList();
 
             _logger.LogInformation("User {UserId} has access to {Count} tenants", userId, tenants.Count);
@@ -73,10 +73,10 @@ public class TenantService : ITenantService
                 .Include(tu => tu.Tenant)
                 .Include(tu => tu.UserRoles)
                     .ThenInclude(ur => ur.Role)
-                .FirstOrDefaultAsync(tu => 
-                    tu.UserId == userId && 
-                    tu.TenantId == tenantId && 
-                    tu.IsActive && 
+                .FirstOrDefaultAsync(tu =>
+                    tu.UserId == userId &&
+                    tu.TenantId == tenantId &&
+                    tu.IsActive &&
                     tu.Tenant.IsActive);
 
             if (tenantUser == null)
@@ -95,7 +95,7 @@ public class TenantService : ITenantService
                 IsPlatformTenant = tenantUser.Tenant.IsPlatformTenant,
                 CreatedAt = tenantUser.Tenant.CreatedAt.DateTime,
                 LogoUrl = null,
-                UserRole = tenantUser.UserRoles.FirstOrDefault()?.Role?.Name ?? "User"
+                UserRoles = tenantUser.UserRoles.Select(ur => ur.Role.Name).ToList()
             };
         }
         catch (Exception ex)
@@ -114,10 +114,10 @@ public class TenantService : ITenantService
                 .Include(tu => tu.Tenant)
                 .Include(tu => tu.UserRoles)
                     .ThenInclude(ur => ur.Role)
-                .FirstOrDefaultAsync(tu => 
-                    tu.UserId == userId && 
-                    tu.TenantId == tenantId && 
-                    tu.IsActive && 
+                .FirstOrDefaultAsync(tu =>
+                    tu.UserId == userId &&
+                    tu.TenantId == tenantId &&
+                    tu.IsActive &&
                     tu.Tenant.IsActive);
 
             if (tenantUser == null)
@@ -134,7 +134,7 @@ public class TenantService : ITenantService
                 SelectedAt = DateTime.UtcNow
             };
 
-            _logger.LogInformation("User {UserId} selected tenant {TenantId} ({TenantName})", 
+            _logger.LogInformation("User {UserId} selected tenant {TenantId} ({TenantName})",
                 userId, tenantId, context.TenantName);
 
             return context;
@@ -151,10 +151,10 @@ public class TenantService : ITenantService
         try
         {
             return await _context.TenantUsers
-                .AnyAsync(tu => 
-                    tu.UserId == userId && 
-                    tu.TenantId == tenantId && 
-                    tu.IsActive && 
+                .AnyAsync(tu =>
+                    tu.UserId == userId &&
+                    tu.TenantId == tenantId &&
+                    tu.IsActive &&
                     tu.Tenant.IsActive);
         }
         catch (Exception ex)
@@ -172,9 +172,9 @@ public class TenantService : ITenantService
                 .Include(tu => tu.Tenant)
                 .Include(tu => tu.UserRoles)
                     .ThenInclude(ur => ur.Role)
-                .FirstOrDefaultAsync(tu => 
-                    tu.UserId == userId && 
-                    tu.TenantId == PLATFORM_TENANT_ID && 
+                .FirstOrDefaultAsync(tu =>
+                    tu.UserId == userId &&
+                    tu.TenantId == PLATFORM_TENANT_ID &&
                     tu.IsActive);
 
             if (platformUser == null)

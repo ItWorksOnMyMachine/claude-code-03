@@ -100,18 +100,18 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         // Create a new context with tenant filtering
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
-        
+
         using var tenantScopedContext = new PlatformDbContext(options, _tenant1Id);
-        
+
         // Seed data in the new context
         await SeedTestDataInContext(tenantScopedContext);
-        
+
         var repository = new BaseRepository<Role>(tenantScopedContext, tenantContext.Object);
 
         // Act
@@ -121,7 +121,7 @@ public class BaseRepositoryTests : IDisposable
         roles.Should().HaveCount(1);
         roles.First().TenantId.Should().Be(_tenant1Id);
     }
-    
+
     private async Task SeedTestDataInContext(PlatformDbContext context)
     {
         // Create test tenants
@@ -181,11 +181,11 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext1 = new Mock<ITenantContext>();
-        tenantContext1.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext1.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var tenantContext2 = new Mock<ITenantContext>();
-        tenantContext2.Setup(x => x.GetCurrentTenantId()).Returns(_tenant2Id);
-        
+        tenantContext2.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant2Id);
+
         var repository1 = new BaseRepository<Role>(_context, tenantContext1.Object);
         var repository2 = new BaseRepository<Role>(_context, tenantContext2.Object);
 
@@ -196,7 +196,7 @@ public class BaseRepositoryTests : IDisposable
         // Assert
         roles1.Should().HaveCount(1);
         roles1.First().TenantId.Should().Be(_tenant1Id);
-        
+
         roles2.Should().HaveCount(1);
         roles2.First().TenantId.Should().Be(_tenant2Id);
     }
@@ -206,9 +206,9 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_platformTenantId);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_platformTenantId);
         tenantContext.Setup(x => x.IsPlatformTenant()).Returns(true);
-        
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
         // Act
@@ -223,10 +223,10 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
-        
+
         var newRole = new Role
         {
             Id = Guid.NewGuid(),
@@ -253,10 +253,10 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
-        
+
         var roleToDelete = await repository.GetAllAsync();
         var roleId = roleToDelete.First().Id;
 
@@ -271,7 +271,7 @@ public class BaseRepositoryTests : IDisposable
         var actualRole = await _context.Roles
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(r => r.Id == roleId);
-        
+
         actualRole.Should().NotBeNull();
         actualRole!.IsDeleted.Should().BeTrue();
         actualRole.DeletedAt.Should().NotBeNull();
@@ -282,10 +282,10 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
-        
+
         // Soft delete a role
         var roles = await repository.GetAllAsync();
         var roleId = roles.First().Id;
@@ -303,12 +303,12 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
-        
+
         var role = (await repository.GetAllAsync()).First();
-        
+
         // Act
         role.DisplayName = "Updated Admin";
         var updated = await repository.UpdateAsync(role);
@@ -324,10 +324,10 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
-        
+
         // Get a role ID from tenant 2
         var tenant2Role = await _context.Roles
             .IgnoreQueryFilters()
@@ -345,10 +345,10 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantId()).Returns(_tenant1Id);
-        
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
-        
+
         // Add more roles for pagination test
         for (int i = 0; i < 10; i++)
         {
@@ -371,7 +371,7 @@ public class BaseRepositoryTests : IDisposable
         page1.Items.Should().HaveCount(5);
         page1.TotalCount.Should().Be(11); // 1 original + 10 new
         page1.PageNumber.Should().Be(1);
-        
+
         page2.Items.Should().HaveCount(5);
         page2.PageNumber.Should().Be(2);
     }

@@ -32,28 +32,28 @@ public class TenantController : ControllerBase
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrentTenant()
     {
-        var sessionId = Request.Cookies["platform.session"];
+        var sessionId = User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "No active session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
-        var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
+        var selectedTenantIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        if (selectedTenantIdResult.IsMissing)
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "Invalid session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
         // Check if tenant is selected in session
-        if (!sessionData.SelectedTenantId.HasValue)
+        if (selectedTenantIdResult.Value == null || !Guid.TryParse(selectedTenantIdResult.Value, out var selectedTenantId))
         {
             return Ok(new CurrentTenantResponse
             {
@@ -63,14 +63,12 @@ public class TenantController : ControllerBase
         }
 
         // Get tenant details
-        var tenant = await _tenantService.GetTenantAsync(sessionData.UserId, sessionData.SelectedTenantId.Value);
+        var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+
+        var tenant = await _tenantService.GetTenantAsync(userIdResult.Value, selectedTenantId);
         if (tenant == null)
         {
-            // Clear invalid tenant from session
-            sessionData.SelectedTenantId = null;
-            sessionData.SelectedTenantName = null;
-            sessionData.TenantRoles = new List<string>();
-            await _sessionService.UpdateSessionDataAsync(sessionId, sessionData);
+            await _sessionService.RemoveSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
 
             return Ok(new CurrentTenantResponse
             {
@@ -87,8 +85,8 @@ public class TenantController : ControllerBase
                 TenantId = tenant.Id,
                 TenantName = tenant.Name,
                 IsPlatformTenant = tenant.IsPlatformTenant,
-                UserRoles = sessionData.TenantRoles ?? new List<string>(),
-                SelectedAt = sessionData.TenantSelectedAt ?? DateTime.UtcNow
+                UserRoles = tenant.UserRoles.ToList(),
+                SelectedAt = DateTime.UtcNow
             }
         });
     }
@@ -99,32 +97,34 @@ public class TenantController : ControllerBase
     [HttpGet("available")]
     public async Task<IActionResult> GetAvailableTenants()
     {
-        var sessionId = Request.Cookies["platform.session"];
+        var sessionId = User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "No active session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
-        var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
+        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        if (UserIdResult.IsMissing)
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "Invalid session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
-        var tenants = await _tenantService.GetAvailableTenantsAsync(sessionData.UserId);
-        
+        var tenants = await _tenantService.GetAvailableTenantsAsync(UserIdResult.Value);
+        var selectedTenantIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+
         return Ok(new AvailableTenantsResponse
         {
             Tenants = tenants,
-            CurrentTenantId = sessionData.SelectedTenantId,
+            CurrentTenantId = selectedTenantIdResult.IsMissing || selectedTenantIdResult.Value == null ? null :
+                Guid.TryParse(selectedTenantIdResult.Value, out var tenantId) ? tenantId : null,
             Count = tenants.Count()
         });
     }
@@ -135,42 +135,34 @@ public class TenantController : ControllerBase
     [HttpPost("select")]
     public async Task<IActionResult> SelectTenant([FromBody] SelectTenantRequest request)
     {
-        var sessionId = Request.Cookies["platform.session"];
+        var sessionId = User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "No active session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
-        var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
+        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        if (UserIdResult.IsMissing)
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "Invalid session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
         try
         {
             // Select the tenant and get context
-            var context = await _tenantService.SelectTenantAsync(sessionData.UserId, request.TenantId);
+            var context = await _tenantService.SelectTenantAsync(UserIdResult.Value, request.TenantId);
+            await _sessionService.StoreSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), context.TenantId.ToString());
 
-            // Update session with selected tenant
-            sessionData.SelectedTenantId = context.TenantId;
-            sessionData.SelectedTenantName = context.TenantName;
-            sessionData.TenantRoles = context.UserRoles;
-            sessionData.TenantSelectedAt = context.SelectedAt;
-            sessionData.IsPlatformAdmin = context.IsPlatformAdmin;
-
-            await _sessionService.UpdateSessionDataAsync(sessionId, sessionData);
-
-            _logger.LogInformation("User {UserId} selected tenant {TenantId} ({TenantName})", 
-                sessionData.UserId, context.TenantId, context.TenantName);
+            _logger.LogInformation("User {UserId} selected tenant {TenantId} ({TenantName})",
+                UserIdResult.Value, context.TenantId, context.TenantName);
 
             return Ok(new TenantSelectionResponse
             {
@@ -181,21 +173,21 @@ public class TenantController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "User {UserId} attempted to select unauthorized tenant {TenantId}", 
-                sessionData.UserId, request.TenantId);
-            
+            _logger.LogWarning(ex, "User {UserId} attempted to select unauthorized tenant {TenantId}",
+                UserIdResult.Value, request.TenantId);
+
             return Forbid();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error selecting tenant {TenantId} for user {UserId}", 
-                request.TenantId, sessionData.UserId);
-            
-            return StatusCode(500, new ErrorResponse 
-            { 
+            _logger.LogError(ex, "Error selecting tenant {TenantId} for user {UserId}",
+                request.TenantId, UserIdResult.Value);
+
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to select tenant",
                 Details = ex.Message,
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -216,36 +208,30 @@ public class TenantController : ControllerBase
     [HttpPost("clear")]
     public async Task<IActionResult> ClearTenantSelection()
     {
-        var sessionId = Request.Cookies["platform.session"];
+        var sessionId = User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "No active session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
-        var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
+        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        if (UserIdResult.IsMissing)
         {
-            return Unauthorized(new ErrorResponse 
-            { 
+            return Unauthorized(new ErrorResponse
+            {
                 Error = "Invalid session",
-                StatusCode = 401 
+                StatusCode = 401
             });
         }
 
         // Clear tenant selection from session
-        sessionData.SelectedTenantId = null;
-        sessionData.SelectedTenantName = null;
-        sessionData.TenantRoles = new List<string>();
-        sessionData.TenantSelectedAt = null;
-        sessionData.IsPlatformAdmin = false;
+        await _sessionService.RemoveSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
 
-        await _sessionService.UpdateSessionDataAsync(sessionId, sessionData);
-
-        _logger.LogInformation("User {UserId} cleared tenant selection", sessionData.UserId);
+        _logger.LogInformation("User {UserId} cleared tenant selection", UserIdResult.Value);
 
         return Ok(new ClearTenantResponse
         {

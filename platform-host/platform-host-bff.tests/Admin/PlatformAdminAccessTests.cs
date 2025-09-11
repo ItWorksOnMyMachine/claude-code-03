@@ -38,7 +38,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
     {
         var testId = System.Threading.Interlocked.Increment(ref _testCounter);
         var dbName = $"PlatformAdminTest_{testId}";
-        
+
         return _factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
@@ -47,7 +47,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
                 // Replace DbContext with in-memory database
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
                 if (descriptor != null) services.Remove(descriptor);
-                
+
                 services.AddDbContext<PlatformDbContext>(options =>
                 {
                     options.UseInMemoryDatabase(dbName);
@@ -57,16 +57,16 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
                 // Configure test session
                 var sessionService = new TestSessionService(selectedTenantId, isPlatformAdmin);
                 services.AddSingleton<ISessionService>(sessionService);
-                
+
                 // Mock tenant service for platform admin check
                 var tenantServiceMock = new Mock<ITenantService>();
                 tenantServiceMock.Setup(x => x.IsPlatformAdminAsync(It.IsAny<string>()))
                     .ReturnsAsync(isPlatformAdmin);
                 services.AddScoped<ITenantService>(_ => tenantServiceMock.Object);
-                
+
                 // Configure tenant context
                 services.AddScoped<ITenantContext, TestTenantContext>();
-                
+
                 // Add authentication
                 services.AddAuthentication(options =>
                 {
@@ -74,7 +74,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
                     options.DefaultChallengeScheme = "Test";
                 })
                 .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
-                
+
                 // Configure static OIDC configuration to avoid network calls
                 services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
                 {
@@ -92,7 +92,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
                     // Use static configuration manager to prevent metadata fetching
                     options.Configuration = config;
                     options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(config);
-                    
+
                     // Ensure events are initialized
                     options.Events ??= new OpenIdConnectEvents();
                 });
@@ -107,29 +107,29 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         var factory = CreateFactory(isPlatformAdmin: true);
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        
+
         // Seed test data
         var platformTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var customerTenant1 = new Tenant 
-        { 
-            Id = Guid.NewGuid(), 
+        var customerTenant1 = new Tenant
+        {
+            Id = Guid.NewGuid(),
             Name = "Customer 1",
             Slug = "customer-1",
             DisplayName = "Customer 1 Company",
             IsActive = true
         };
-        var customerTenant2 = new Tenant 
-        { 
-            Id = Guid.NewGuid(), 
+        var customerTenant2 = new Tenant
+        {
+            Id = Guid.NewGuid(),
             Name = "Customer 2",
             Slug = "customer-2",
             DisplayName = "Customer 2 Company",
             IsActive = true
         };
-        
+
         dbContext.Tenants.AddRange(customerTenant1, customerTenant2);
         await dbContext.SaveChangesAsync();
-        
+
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", "platform.session=test-session");
 
@@ -157,20 +157,20 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         // Act 1: Create multiple tenants
         var tenant1Dto = new CreateTenantDto { Name = "Tenant A", Description = "First tenant" };
         var tenant2Dto = new CreateTenantDto { Name = "Tenant B", Description = "Second tenant" };
-        
+
         var response1 = await client.PostAsJsonAsync("/api/admin/tenants", tenant1Dto);
         var response2 = await client.PostAsJsonAsync("/api/admin/tenants", tenant2Dto);
-        
+
         response1.StatusCode.Should().Be(HttpStatusCode.Created);
         response2.StatusCode.Should().Be(HttpStatusCode.Created);
-        
+
         var tenant1 = await response1.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantInfo>();
         var tenant2 = await response2.Content.ReadFromJsonAsync<PlatformBff.Models.Tenant.TenantInfo>();
 
         // Act 2: Get all tenants with pagination
         var pageResponse = await client.GetAsync("/api/admin/tenants?page=1&pageSize=10");
         pageResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var allTenants = await pageResponse.Content.ReadFromJsonAsync<List<PlatformBff.Models.Tenant.TenantInfo>>();
         allTenants.Should().NotBeNull();
         allTenants!.Should().Contain(t => t.Name == "tenant-a" && t.DisplayName == "Tenant A");
@@ -221,19 +221,19 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         var factory = CreateFactory(isPlatformAdmin: true);
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        
+
         // Create test tenants
-        var tenant1 = new Tenant 
-        { 
-            Id = Guid.NewGuid(), 
+        var tenant1 = new Tenant
+        {
+            Id = Guid.NewGuid(),
             Name = "Tenant for User Assignment 1",
             Slug = "tenant-user-1",
             DisplayName = "Tenant for User Assignment 1",
             IsActive = true
         };
-        var tenant2 = new Tenant 
-        { 
-            Id = Guid.NewGuid(), 
+        var tenant2 = new Tenant
+        {
+            Id = Guid.NewGuid(),
             Name = "Tenant for User Assignment 2",
             Slug = "tenant-user-2",
             DisplayName = "Tenant for User Assignment 2",
@@ -241,14 +241,14 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         };
         dbContext.Tenants.AddRange(tenant1, tenant2);
         await dbContext.SaveChangesAsync();
-        
+
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("Cookie", "platform.session=test-session");
 
         // Act: Assign same user to multiple tenants
         var userId = "user-123";
         var email = "user@example.com";
-        
+
         var response1 = await client.PostAsync(
             $"/api/admin/tenant/{tenant1.Id}/users?userId={userId}&email={email}&role=User", null);
         var response2 = await client.PostAsync(
@@ -257,14 +257,14 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         // Assert
         response1.StatusCode.Should().Be(HttpStatusCode.OK);
         response2.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify user is assigned to both tenants
         using var verifyScope = factory.Services.CreateScope();
         var verifyContext = verifyScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var userTenants = await verifyContext.TenantUsers
             .Where(tu => tu.UserId == userId)
             .ToListAsync();
-        
+
         userTenants.Should().HaveCount(2);
         userTenants.Should().Contain(tu => tu.TenantId == tenant1.Id);
         userTenants.Should().Contain(tu => tu.TenantId == tenant2.Id);
@@ -275,51 +275,46 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
     {
         private readonly Guid? _selectedTenantId;
         private readonly bool _isPlatformAdmin;
-        private readonly Dictionary<string, SessionData> _sessions = new();
+        private readonly Dictionary<string, string> _sessionData = new();
 
         public TestSessionService(Guid? selectedTenantId, bool isPlatformAdmin)
         {
             _selectedTenantId = selectedTenantId;
             _isPlatformAdmin = isPlatformAdmin;
-            
+
             // Initialize test session
-            _sessions["test-session"] = new SessionData
-            {
-                SessionId = "test-session",
-                UserId = "test-user",
-                Email = "test@platform.com",
-                IsPlatformAdmin = _isPlatformAdmin,
-                SelectedTenantId = _selectedTenantId ?? (_isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001") : null),
-                SelectedTenantName = _isPlatformAdmin ? "Platform" : "Test Tenant"
-            };
+            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.UserId)}"] = "test-user";
+            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.SelectedTenantId)}"] = _selectedTenantId?.ToString() ?? (_isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : null);
         }
 
-        public Task<SessionData?> GetSessionDataAsync(string sessionId)
+        public Task<HasValueOrMissingResult<string>> GetSessionDataAsync(string sessionId, string name)
         {
-            _sessions.TryGetValue(sessionId, out var session);
-            return Task.FromResult(session);
+            _sessionData.TryGetValue($"{sessionId}:{name}", out var sessionData);
+            return Task.FromResult(sessionData != null
+                ? HasValueOrMissingResult<string>.SetValue(sessionData.GetType().GetProperty(name)?.GetValue(sessionData)?.ToString() ?? "")
+                : HasValueOrMissingResult<string>.SetMissing());
         }
 
-        public Task UpdateSessionDataAsync(string sessionId, SessionData sessionData)
+        public Task StoreSessionDataAsync(string sessionId, string name, string data, DateTimeOffset? expiresAt = null)
         {
-            _sessions[sessionId] = sessionData;
+            _sessionData[$"{sessionId}:{name}"] = data;
             return Task.CompletedTask;
         }
 
-        public Task StoreSessionDataAsync(string sessionId, SessionData sessionData)
-        {
-            _sessions[sessionId] = sessionData;
-            return Task.CompletedTask;
-        }
-
-        public Task<bool> IsSessionValidAsync(string sessionId) => Task.FromResult(_sessions.ContainsKey(sessionId));
-        public Task ExtendSessionAsync(string sessionId, TimeSpan extension) => Task.CompletedTask;
         public Task RemoveSessionAsync(string sessionId)
         {
-            _sessions.Remove(sessionId);
+            var keysToRemove = _sessionData.Keys.Where(k => k.StartsWith(sessionId + ":"));
+            foreach (var key in keysToRemove)
+                _sessionData.Remove(key);
             return Task.CompletedTask;
         }
-        
+
+        public Task RemoveSessionDataAsync(string sessionId, string name)
+        {
+            _sessionData.Remove($"test-session:{sessionId}:{name}");
+            return Task.CompletedTask;
+        }
+
         // Token methods (not used in these tests)
         public Task StoreTokensAsync(string sessionId, TokenData tokens) => Task.CompletedTask;
         public Task<TokenData?> GetTokensAsync(string sessionId) => Task.FromResult<TokenData?>(null);
@@ -338,59 +333,66 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
             _serviceProvider = serviceProvider;
         }
 
-        public Guid? GetCurrentTenantId()
+        public async Task<Guid?> GetCurrentTenantIdAsync()
         {
             if (_currentTenantId.HasValue)
                 return _currentTenantId;
 
-            var sessionService = _serviceProvider.GetRequiredService<ISessionService>();
             var httpContext = _serviceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()?.HttpContext;
-            
-            if (httpContext?.Request.Cookies.TryGetValue("platform.session", out var sessionId) == true)
+
+            var sessionId = httpContext?.User.FindFirst("session_id")?.Value;
+            if (string.IsNullOrEmpty(sessionId))
             {
-                var session = sessionService.GetSessionDataAsync(sessionId).GetAwaiter().GetResult();
-                return session?.SelectedTenantId;
+                return null;
             }
-            
-            return null;
+
+            var sessionService = _serviceProvider.GetRequiredService<ISessionService>();
+            var SelectedTenantIdResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+            return SelectedTenantIdResult.HasValue && Guid.TryParse(SelectedTenantIdResult.Value, out var tenantId)
+                ? tenantId
+                : null;
         }
 
-        public void SetTenant(Guid tenantId)
+        public Task SetTenant(Guid tenantId)
         {
             _currentTenantId = tenantId;
+            return Task.CompletedTask;
         }
 
-        public void ClearTenant()
+        public Task ClearTenant()
         {
             _currentTenantId = null;
+            return Task.CompletedTask;
         }
 
-        public bool IsPlatformTenant()
+        public async Task<bool> IsPlatformTenant()
         {
-            var tenantId = GetCurrentTenantId();
+            var tenantId = await GetCurrentTenantIdAsync();
             return tenantId.HasValue && tenantId.Value == Guid.Parse("00000000-0000-0000-0000-000000000001");
         }
 
-        public string? GetCurrentUserId()
+        public async Task<string?> GetCurrentUserId()
         {
             if (!string.IsNullOrEmpty(_currentUserId))
                 return _currentUserId;
 
-            var sessionService = _serviceProvider.GetRequiredService<ISessionService>();
             var httpContext = _serviceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()?.HttpContext;
-            
-            if (httpContext?.Request.Cookies.TryGetValue("platform.session", out var sessionId) == true)
+
+            var sessionId = httpContext?.User.FindFirst("session_id")?.Value;
+            if (string.IsNullOrEmpty(sessionId))
             {
-                var session = sessionService.GetSessionDataAsync(sessionId).GetAwaiter().GetResult();
-                return session?.UserId;
+                return null;
             }
-            
-            return null;
+
+            var sessionService = _serviceProvider.GetRequiredService<ISessionService>();
+            var userIdResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            return userIdResult.HasValue ? userIdResult.Value : null;
         }
 
-        public void SetUserId(string userId)
+        public Task SetUserId(string userId)
         {
             _currentUserId = userId;
+            return Task.CompletedTask;
         }
     }
 
@@ -398,7 +400,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
     {
         public TestAuthenticationHandler(
             Microsoft.Extensions.Options.IOptionsMonitor<TestAuthenticationSchemeOptions> options,
-            Microsoft.Extensions.Logging.ILoggerFactory logger, 
+            Microsoft.Extensions.Logging.ILoggerFactory logger,
             System.Text.Encodings.Web.UrlEncoder encoder)
             : base(options, logger, encoder)
         {

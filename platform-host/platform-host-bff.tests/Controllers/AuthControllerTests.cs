@@ -99,34 +99,21 @@ public class AuthControllerTests
     public async Task Session_Should_Return_User_Info_When_Authenticated()
     {
         // Arrange
-        var sessionId = "test-session-id";
         var userId = "user-123";
         var userEmail = "user@example.com";
+        var userName = "John Doe";
 
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
-
-        var sessionData = new SessionData
-        {
-            SessionId = sessionId,
-            UserId = userId,
-            Email = userEmail,
-            Username = "John Doe",
-            ExpiresAt = DateTime.UtcNow.AddHours(1),
-            Claims = new Dictionary<string, string>
-            {
-                ["sub"] = userId,
-                ["email"] = userEmail,
-                ["name"] = "John Doe"
-            }
+            new Claim(ClaimTypes.NameIdentifier, userId),
+            new Claim(ClaimTypes.Email, userEmail),
+            new Claim(ClaimTypes.Name, userName)
         };
 
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(sessionId))
-            .ReturnsAsync(sessionData);
-        _sessionServiceMock.Setup(x => x.IsSessionValidAsync(sessionId))
-            .ReturnsAsync(true);
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+
+        _controller.ControllerContext.HttpContext.User = principal;
 
         // Act
         var result = await _controller.GetSession();
@@ -139,20 +126,23 @@ public class AuthControllerTests
         Assert.NotNull(sessionResponse.User);
         Assert.Equal(userId, sessionResponse.User.Id);
         Assert.Equal(userEmail, sessionResponse.User.Email);
-        Assert.Equal("John Doe", sessionResponse.User.Name);
+        Assert.Equal(userName, sessionResponse.User.Name);
     }
 
     [Fact]
-    public async Task Session_Should_Return_Unauthorized_When_Not_Authenticated()
+    public async Task Session_Should_Return_Unauthenticated_Response_When_Not_Authenticated()
     {
-        // Arrange
-        _httpContext.Request.Cookies = new TestRequestCookieCollection();
+        // Arrange - User.Identity.IsAuthenticated is false by default
 
         // Act
         var result = await _controller.GetSession();
 
         // Assert
-        Assert.IsType<UnauthorizedResult>(result);
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var sessionResponse = Assert.IsType<SessionResponse>(okResult.Value);
+        Assert.NotNull(sessionResponse);
+        Assert.False(sessionResponse.IsAuthenticated);
+        Assert.Null(sessionResponse.User);
     }
 
     // [Fact] // Disabled: Callback method moved to OIDC middleware events
@@ -223,8 +213,6 @@ public class AuthControllerTests
 
         _sessionServiceMock.Setup(x => x.GetTokensAsync(sessionId))
             .ReturnsAsync(existingTokens);
-        _sessionServiceMock.Setup(x => x.IsSessionValidAsync(sessionId))
-            .ReturnsAsync(true);
 
         // Act
         var result = await _controller.RefreshToken();

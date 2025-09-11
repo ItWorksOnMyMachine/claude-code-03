@@ -11,7 +11,8 @@
       "Bash(npm install:*)",
       "Bash(git reset:*)",
       "Bash(rm:*)",
-      "Bash(echo $USERPROFILE)"
+      "Bash(echo $USERPROFILE)",
+      "Bash(dotnet test:*)"
     ],
     "deny": [],
     "ask": []

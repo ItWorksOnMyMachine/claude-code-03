@@ -13,20 +13,20 @@ public class PlatformDbContext : DbContext
     private readonly ITenantContext? _tenantContext;
     private readonly Guid? _currentTenantId;
 
-    public PlatformDbContext(DbContextOptions<PlatformDbContext> options) 
+    public PlatformDbContext(DbContextOptions<PlatformDbContext> options)
         : base(options)
     {
     }
 
-    public PlatformDbContext(DbContextOptions<PlatformDbContext> options, ITenantContext? tenantContext = null) 
+    public PlatformDbContext(DbContextOptions<PlatformDbContext> options, ITenantContext? tenantContext = null)
         : base(options)
     {
         _tenantContext = tenantContext;
-        _currentTenantId = tenantContext?.GetCurrentTenantId();
+        _currentTenantId = tenantContext?.GetCurrentTenantIdAsync().GetAwaiter().GetResult();
     }
 
     // Constructor for testing with explicit tenant ID
-    public PlatformDbContext(DbContextOptions<PlatformDbContext> options, Guid? currentTenantId) 
+    public PlatformDbContext(DbContextOptions<PlatformDbContext> options, Guid? currentTenantId)
         : base(options)
     {
         _currentTenantId = currentTenantId;
@@ -49,14 +49,14 @@ public class PlatformDbContext : DbContext
             entity.Property(e => e.Slug).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Settings).HasColumnType("jsonb");
-            
+
             entity.HasIndex(e => e.Slug)
                 .IsUnique()
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.IsActive)
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.IsPlatformTenant)
                 .IsUnique()
                 .HasFilter("\"IsPlatformTenant\" = true AND \"IsDeleted\" = false");
@@ -70,19 +70,19 @@ public class PlatformDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.UserId).HasMaxLength(450).IsRequired();
-            
+
             entity.HasOne(e => e.Tenant)
                 .WithMany(t => t.TenantUsers)
                 .HasForeignKey(e => e.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasIndex(e => new { e.UserId, e.TenantId })
                 .IsUnique()
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.UserId)
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.TenantId)
                 .HasFilter("\"IsDeleted\" = false");
 
@@ -97,24 +97,24 @@ public class PlatformDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Permissions).HasColumnType("jsonb");
-            
+
             entity.HasOne(e => e.Tenant)
                 .WithMany(t => t.Roles)
                 .HasForeignKey(e => e.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasIndex(e => new { e.TenantId, e.Name })
                 .IsUnique()
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.Name)
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.IsSystemRole)
                 .HasFilter("\"IsDeleted\" = false");
 
             // Global query filter for soft delete and tenant isolation
-            entity.HasQueryFilter(e => !e.IsDeleted && 
+            entity.HasQueryFilter(e => !e.IsDeleted &&
                 (_currentTenantId == null || e.TenantId == _currentTenantId));
         });
 
@@ -123,27 +123,27 @@ public class PlatformDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.AssignedBy).HasMaxLength(255);
-            
+
             entity.HasOne(e => e.TenantUser)
                 .WithMany(tu => tu.UserRoles)
                 .HasForeignKey(e => e.TenantUserId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasOne(e => e.Role)
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(e => e.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasIndex(e => new { e.TenantUserId, e.RoleId })
                 .IsUnique()
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.TenantUserId)
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.RoleId)
                 .HasFilter("\"IsDeleted\" = false");
-            
+
             entity.HasIndex(e => e.ExpiresAt)
                 .HasFilter("\"IsDeleted\" = false AND \"ExpiresAt\" IS NOT NULL");
 

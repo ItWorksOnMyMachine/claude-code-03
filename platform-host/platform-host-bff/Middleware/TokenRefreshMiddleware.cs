@@ -44,7 +44,7 @@ public class TokenRefreshMiddleware
         }
 
         // Check for session cookie
-        var sessionId = context.Request.Cookies["platform.session"];
+        var sessionId = context.User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
             await _next(context);
@@ -69,14 +69,14 @@ public class TokenRefreshMiddleware
                 return;
             }
 
-            _logger.LogInformation("Token expiring in {Minutes} minutes, initiating refresh for session {SessionId}", 
+            _logger.LogInformation("Token expiring in {Minutes} minutes, initiating refresh for session {SessionId}",
                 timeUntilExpiry.TotalMinutes, sessionId);
 
             // Attempt token refresh with retry logic
             TokenData? newTokens = null;
             int maxRetries = 3;
             int retryCount = 0;
-            
+
             while (retryCount < maxRetries)
             {
                 try
@@ -87,7 +87,7 @@ public class TokenRefreshMiddleware
                 catch (HttpRequestException ex) when (retryCount < maxRetries - 1)
                 {
                     retryCount++;
-                    _logger.LogWarning(ex, "Token refresh attempt {Attempt} failed for session {SessionId}, retrying...", 
+                    _logger.LogWarning(ex, "Token refresh attempt {Attempt} failed for session {SessionId}, retrying...",
                         retryCount, sessionId);
                     await Task.Delay(TimeSpan.FromMilliseconds(500 * retryCount)); // Exponential backoff
                 }
@@ -102,11 +102,7 @@ public class TokenRefreshMiddleware
             {
                 // Store the new tokens
                 await sessionService.StoreTokensAsync(sessionId, newTokens);
-                
-                // Extend session expiry
-                var sessionExtension = newTokens.ExpiresAt - DateTime.UtcNow;
-                await sessionService.ExtendSessionAsync(sessionId, sessionExtension);
-                
+
                 _logger.LogInformation("Successfully refreshed tokens for session {SessionId}", sessionId);
             }
         }

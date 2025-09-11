@@ -29,26 +29,11 @@ public class PlatformAdminAttribute : Attribute, IAsyncAuthorizationFilter
             return;
         }
 
-        // Get session ID from cookie
-        var sessionId = context.HttpContext.Request.Cookies["platform.session"];
+        // Get session ID from claims
+        var sessionId = context.HttpContext.User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
             context.Result = new UnauthorizedResult();
-            return;
-        }
-
-        // Get session data
-        var sessionData = await sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
-        {
-            context.Result = new UnauthorizedResult();
-            return;
-        }
-
-        // Check if user is platform admin
-        if (!sessionData.IsPlatformAdmin)
-        {
-            context.Result = new ForbidResult();
             return;
         }
 
@@ -56,7 +41,8 @@ public class PlatformAdminAttribute : Attribute, IAsyncAuthorizationFilter
         var tenantService = context.HttpContext.RequestServices.GetService<ITenantService>();
         if (tenantService != null)
         {
-            var isPlatformAdmin = await tenantService.IsPlatformAdminAsync(sessionData.UserId);
+            var userIdString = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            var isPlatformAdmin = userIdString.IsMissing ? false : await tenantService.IsPlatformAdminAsync(userIdString.Value);
             if (!isPlatformAdmin)
             {
                 context.Result = new ForbidResult();
@@ -106,33 +92,22 @@ public class PlatformAdminAuthorizationHandler : AuthorizationHandler<PlatformAd
         }
 
         // Get session ID from cookie
-        var sessionId = httpContext.Request.Cookies["platform.session"];
+        var sessionId = httpContext.User.FindFirst("session_id")?.Value;
         if (string.IsNullOrEmpty(sessionId))
         {
             context.Fail();
             return;
         }
 
-        // Get session data
-        var sessionData = await _sessionService.GetSessionDataAsync(sessionId);
-        if (sessionData == null)
+        // Verify with tenant service
+        var userIdString = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        var isPlatformAdmin = userIdString.IsMissing ? false : await _tenantService.IsPlatformAdminAsync(userIdString.Value);
+        if (!isPlatformAdmin)
         {
             context.Fail();
             return;
         }
 
-        // Check if user is platform admin
-        if (sessionData.IsPlatformAdmin)
-        {
-            // Verify with tenant service
-            var isPlatformAdmin = await _tenantService.IsPlatformAdminAsync(sessionData.UserId);
-            if (isPlatformAdmin)
-            {
-                context.Succeed(requirement);
-                return;
-            }
-        }
-
-        context.Fail();
+        context.Succeed(requirement);
     }
 }

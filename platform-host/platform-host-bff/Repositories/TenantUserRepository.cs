@@ -11,7 +11,7 @@ namespace PlatformBff.Repositories;
 
 public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepository
 {
-    public TenantUserRepository(PlatformDbContext context, ITenantContext tenantContext) 
+    public TenantUserRepository(PlatformDbContext context, ITenantContext tenantContext)
         : base(context, tenantContext)
     {
     }
@@ -21,9 +21,9 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
         return await _dbSet
             .Include(tu => tu.UserRoles)
             .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(tu => 
-                tu.UserId == userId && 
-                tu.TenantId == tenantId && 
+            .FirstOrDefaultAsync(tu =>
+                tu.UserId == userId &&
+                tu.TenantId == tenantId &&
                 !tu.IsDeleted);
     }
 
@@ -40,9 +40,9 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
     public async Task<IEnumerable<TenantUser>> GetActiveTenantUsersAsync(Guid tenantId)
     {
         return await _dbSet
-            .Where(tu => 
-                tu.TenantId == tenantId && 
-                tu.IsActive && 
+            .Where(tu =>
+                tu.TenantId == tenantId &&
+                tu.IsActive &&
                 !tu.IsDeleted)
             .Include(tu => tu.UserRoles)
             .ThenInclude(ur => ur.Role)
@@ -53,10 +53,10 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
     public async Task<bool> IsUserInTenantAsync(string userId, Guid tenantId)
     {
         return await _dbSet
-            .AnyAsync(tu => 
-                tu.UserId == userId && 
-                tu.TenantId == tenantId && 
-                tu.IsActive && 
+            .AnyAsync(tu =>
+                tu.UserId == userId &&
+                tu.TenantId == tenantId &&
+                tu.IsActive &&
                 !tu.IsDeleted);
     }
 
@@ -65,10 +65,11 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
         // Check if user already exists (including soft-deleted)
         var existingUser = await _dbSet
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(tu => 
-                tu.UserId == userId && 
+            .FirstOrDefaultAsync(tu =>
+                tu.UserId == userId &&
                 tu.TenantId == tenantId);
 
+        var currentUserId = await _tenantContext.GetCurrentUserId();
         if (existingUser != null)
         {
             // Reactivate if soft-deleted
@@ -80,13 +81,13 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
                 existingUser.IsActive = true;
                 existingUser.JoinedAt = DateTimeOffset.UtcNow;
                 existingUser.UpdatedAt = DateTimeOffset.UtcNow;
-                existingUser.UpdatedBy = _tenantContext.GetCurrentUserId();
-                
+                existingUser.UpdatedBy = currentUserId;
+
                 _dbSet.Update(existingUser);
                 await SaveChangesAsync();
                 return existingUser;
             }
-            
+
             return existingUser;
         }
 
@@ -100,7 +101,7 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
             JoinedAt = DateTimeOffset.UtcNow,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
-            CreatedBy = _tenantContext.GetCurrentUserId()
+            CreatedBy = currentUserId
         };
 
         await _dbSet.AddAsync(tenantUser);
@@ -117,7 +118,7 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
         tenantUser.IsActive = false;
         tenantUser.IsDeleted = true;
         tenantUser.DeletedAt = DateTimeOffset.UtcNow;
-        tenantUser.DeletedBy = _tenantContext.GetCurrentUserId();
+        tenantUser.DeletedBy = await _tenantContext.GetCurrentUserId();
 
         _dbSet.Update(tenantUser);
         await SaveChangesAsync();
@@ -140,16 +141,16 @@ public class TenantUserRepository : BaseRepository<TenantUser>, ITenantUserRepos
         var tenantUser = await _dbSet
             .Include(tu => tu.UserRoles)
             .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(tu => 
-                tu.UserId == userId && 
-                tu.TenantId == tenantId && 
+            .FirstOrDefaultAsync(tu =>
+                tu.UserId == userId &&
+                tu.TenantId == tenantId &&
                 !tu.IsDeleted);
 
         if (tenantUser == null)
             return new List<Role>();
 
         return tenantUser.UserRoles
-            .Where(ur => !ur.IsDeleted && 
+            .Where(ur => !ur.IsDeleted &&
                         (!ur.ExpiresAt.HasValue || ur.ExpiresAt > DateTimeOffset.UtcNow))
             .Select(ur => ur.Role)
             .Where(r => !r.IsDeleted)

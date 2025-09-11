@@ -13,9 +13,9 @@ public class TenantInfo
     public bool IsPlatformTenant { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? LogoUrl { get; set; }
-    
+
     /// <summary>
     /// User's role in this tenant (if applicable)
     /// </summary>
-    public string? UserRole { get; set; }
+    public IEnumerable<string> UserRoles { get; set; } = Enumerable.Empty<string>();
 }

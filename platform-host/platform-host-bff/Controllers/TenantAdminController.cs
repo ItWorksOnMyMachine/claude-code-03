@@ -53,10 +53,10 @@ public class TenantAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tenants");
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to retrieve tenants",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -71,38 +71,38 @@ public class TenantAdminController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(dto.Name))
             {
-                return BadRequest(new ErrorResponse 
-                { 
+                return BadRequest(new ErrorResponse
+                {
                     Error = "Tenant name is required",
-                    StatusCode = 400 
+                    StatusCode = 400
                 });
             }
 
             var tenant = await _tenantAdminService.CreateTenantAsync(dto);
 
             // Log admin action
-            var sessionId = Request.Cookies["platform.session"];
-            var sessionData = await _sessionService.GetSessionDataAsync(sessionId!);
+            var sessionId = User.FindFirst("session_id")?.Value;
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} created tenant {TenantId} ({TenantName})",
-                sessionData?.UserId, tenant.Id, tenant.Name);
+                userIdResult.Value, tenant.Id, tenant.Name);
 
             return CreatedAtAction(nameof(GetTenant), new { id = tenant.Id }, tenant);
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new ErrorResponse 
-            { 
+            return Conflict(new ErrorResponse
+            {
                 Error = ex.Message,
-                StatusCode = 409 
+                StatusCode = 409
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating tenant");
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to create tenant",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -120,19 +120,19 @@ public class TenantAdminController : ControllerBase
         }
         catch (ArgumentException)
         {
-            return NotFound(new ErrorResponse 
-            { 
+            return NotFound(new ErrorResponse
+            {
                 Error = $"Tenant {id} not found",
-                StatusCode = 404 
+                StatusCode = 404
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tenant {TenantId}", id);
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to retrieve tenant",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -147,31 +147,31 @@ public class TenantAdminController : ControllerBase
         {
             var result = await _tenantAdminService.UpdateTenantAsync(id, dto);
             var success = result != null;
-            
+
             if (!success)
             {
-                return NotFound(new ErrorResponse 
-                { 
+                return NotFound(new ErrorResponse
+                {
                     Error = $"Tenant {id} not found",
-                    StatusCode = 404 
+                    StatusCode = 404
                 });
             }
 
             // Log admin action
-            var sessionId = Request.Cookies["platform.session"];
-            var sessionData = await _sessionService.GetSessionDataAsync(sessionId!);
+            var sessionId = User.FindFirst("session_id")?.Value;
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} updated tenant {TenantId}",
-                sessionData?.UserId, id);
+                userIdResult.Value, id);
 
             return NoContent();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating tenant {TenantId}", id);
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to update tenant",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -185,39 +185,39 @@ public class TenantAdminController : ControllerBase
         try
         {
             var success = await _tenantAdminService.DeactivateTenantAsync(id);
-            
+
             if (!success)
             {
-                return NotFound(new ErrorResponse 
-                { 
+                return NotFound(new ErrorResponse
+                {
                     Error = $"Tenant {id} not found",
-                    StatusCode = 404 
+                    StatusCode = 404
                 });
             }
 
             // Log admin action
-            var sessionId = Request.Cookies["platform.session"];
-            var sessionData = await _sessionService.GetSessionDataAsync(sessionId!);
+            var sessionId = User.FindFirst("session_id")?.Value;
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} deactivated tenant {TenantId}",
-                sessionData?.UserId, id);
+                userIdResult.Value, id);
 
             return Ok(new { Success = true, Message = "Tenant deactivated" });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ErrorResponse 
-            { 
+            return BadRequest(new ErrorResponse
+            {
                 Error = ex.Message,
-                StatusCode = 400 
+                StatusCode = 400
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deactivating tenant {TenantId}", id);
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to deactivate tenant",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }
@@ -232,20 +232,20 @@ public class TenantAdminController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(userId))
             {
-                return BadRequest(new ErrorResponse 
-                { 
+                return BadRequest(new ErrorResponse
+                {
                     Error = "User ID is required",
-                    StatusCode = 400 
+                    StatusCode = 400
                 });
             }
 
             var success = await _tenantAdminService.AssignUserToTenantAsync(id, userId, email, role);
 
             // Log admin action
-            var sessionId = Request.Cookies["platform.session"];
-            var sessionData = await _sessionService.GetSessionDataAsync(sessionId!);
+            var sessionId = User.FindFirst("session_id")?.Value;
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} added user {UserId} to tenant {TenantId}",
-                sessionData?.UserId, userId, id);
+                userIdResult.Value, userId, id);
 
             if (success)
             {
@@ -255,27 +255,27 @@ public class TenantAdminController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return NotFound(new ErrorResponse 
-            { 
+            return NotFound(new ErrorResponse
+            {
                 Error = ex.Message,
-                StatusCode = 404 
+                StatusCode = 404
             });
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new ErrorResponse 
-            { 
+            return Conflict(new ErrorResponse
+            {
                 Error = ex.Message,
-                StatusCode = 409 
+                StatusCode = 409
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding user to tenant {TenantId}", id);
-            return StatusCode(500, new ErrorResponse 
-            { 
+            return StatusCode(500, new ErrorResponse
+            {
                 Error = "Failed to add user to tenant",
-                StatusCode = 500 
+                StatusCode = 500
             });
         }
     }

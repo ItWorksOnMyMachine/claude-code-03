@@ -27,23 +27,23 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     {
         // Build a query that respects both soft delete and tenant filters
         var query = _dbSet.AsQueryable();
-        
+
         // For entities with TenantId property, apply tenant filter
         if (typeof(T).GetProperty("TenantId") != null)
         {
-            var currentTenantId = _tenantContext.GetCurrentTenantId();
+            var currentTenantId = await _tenantContext.GetCurrentTenantIdAsync();
             if (currentTenantId.HasValue)
             {
                 query = query.Where(e => EF.Property<Guid>(e, "TenantId") == currentTenantId.Value);
             }
         }
-        
+
         // For entities with IsDeleted property, filter out soft deleted items
         if (typeof(T).GetProperty("IsDeleted") != null)
         {
             query = query.Where(e => !EF.Property<bool>(e, "IsDeleted"));
         }
-        
+
         // Apply the ID filter
         return await query.SingleOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id);
     }
@@ -51,15 +51,15 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public virtual async Task<IEnumerable<T>> GetAllAsync(bool ignoreQueryFilters = false)
     {
         var query = _dbSet.AsQueryable();
-        
-        if (ignoreQueryFilters && CanIgnoreFilters())
+
+        if (ignoreQueryFilters && await CanIgnoreFilters())
         {
             query = query.IgnoreQueryFilters();
         }
         else
         {
             // Apply manual filters when global filters aren't working properly
-            query = ApplyTenantAndSoftDeleteFilters(query);
+            query = await ApplyTenantAndSoftDeleteFilters(query);
         }
 
         return await query.ToListAsync();
@@ -68,15 +68,15 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public virtual async Task<IEnumerable<T>> GetAsync(Expression<Func<T, bool>> predicate, bool ignoreQueryFilters = false)
     {
         var query = _dbSet.Where(predicate);
-        
-        if (ignoreQueryFilters && CanIgnoreFilters())
+
+        if (ignoreQueryFilters && await CanIgnoreFilters())
         {
             query = query.IgnoreQueryFilters();
         }
         else
         {
             // Apply manual filters when global filters aren't working properly
-            query = ApplyTenantAndSoftDeleteFilters(query);
+            query = await ApplyTenantAndSoftDeleteFilters(query);
         }
 
         return await query.ToListAsync();
@@ -85,31 +85,31 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public virtual async Task<T?> GetSingleAsync(Expression<Func<T, bool>> predicate, bool ignoreQueryFilters = false)
     {
         var query = _dbSet.Where(predicate);
-        
-        if (ignoreQueryFilters && CanIgnoreFilters())
+
+        if (ignoreQueryFilters && await CanIgnoreFilters())
         {
             query = query.IgnoreQueryFilters();
         }
         else
         {
             // Apply manual filters when global filters aren't working properly
-            query = ApplyTenantAndSoftDeleteFilters(query);
+            query = await ApplyTenantAndSoftDeleteFilters(query);
         }
 
         return await query.FirstOrDefaultAsync();
     }
 
     public virtual async Task<PagedResult<T>> GetPagedAsync(
-        int pageNumber, 
+        int pageNumber,
         int pageSize,
         Expression<Func<T, bool>>? predicate = null,
         Expression<Func<T, object>>? orderBy = null,
         bool ascending = true)
     {
         var query = _dbSet.AsQueryable();
-        
+
         // Apply tenant and soft delete filters
-        query = ApplyTenantAndSoftDeleteFilters(query);
+        query = await ApplyTenantAndSoftDeleteFilters(query);
 
         if (predicate != null)
         {
@@ -120,8 +120,8 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
         if (orderBy != null)
         {
-            query = ascending 
-                ? query.OrderBy(orderBy) 
+            query = ascending
+                ? query.OrderBy(orderBy)
                 : query.OrderByDescending(orderBy);
         }
 
@@ -142,8 +142,8 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public virtual async Task<T> AddAsync(T entity)
     {
         // Set tenant ID if the entity has TenantId property
-        SetTenantId(entity);
-        
+        await SetTenantIdAsync(entity);
+
         await _dbSet.AddAsync(entity);
         await SaveChangesAsync();
         return entity;
@@ -152,13 +152,13 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public virtual async Task<IEnumerable<T>> AddRangeAsync(IEnumerable<T> entities)
     {
         var entityList = entities.ToList();
-        
+
         // Set tenant ID for each entity
         foreach (var entity in entityList)
         {
-            SetTenantId(entity);
+            await SetTenantIdAsync(entity);
         }
-        
+
         await _dbSet.AddRangeAsync(entityList);
         await SaveChangesAsync();
         return entityList;
@@ -188,8 +188,8 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
         {
             auditableEntity.IsDeleted = true;
             auditableEntity.DeletedAt = DateTimeOffset.UtcNow;
-            auditableEntity.DeletedBy = _tenantContext.GetCurrentUserId();
-            
+            auditableEntity.DeletedBy = await _tenantContext.GetCurrentUserId();
+
             _dbSet.Update(entity);
             await SaveChangesAsync();
             return true;
@@ -204,7 +204,7 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
         var entity = await _dbSet
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id);
-            
+
         if (entity == null)
             return false;
 
@@ -215,15 +215,15 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
     public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
     {
-        var query = ApplyTenantAndSoftDeleteFilters(_dbSet.AsQueryable());
+        var query = await ApplyTenantAndSoftDeleteFilters(_dbSet.AsQueryable());
         return await query.AnyAsync(predicate);
     }
 
     public virtual async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
     {
-        var query = ApplyTenantAndSoftDeleteFilters(_dbSet.AsQueryable());
-        return predicate == null 
-            ? await query.CountAsync() 
+        var query = await ApplyTenantAndSoftDeleteFilters(_dbSet.AsQueryable());
+        return predicate == null
+            ? await query.CountAsync()
             : await query.CountAsync(predicate);
     }
 
@@ -235,48 +235,48 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     /// <summary>
     /// Check if the current user can ignore query filters (platform admin)
     /// </summary>
-    protected virtual bool CanIgnoreFilters()
+    protected virtual async Task<bool> CanIgnoreFilters()
     {
-        return _tenantContext.IsPlatformTenant();
+        return await _tenantContext.IsPlatformTenant();
     }
 
     /// <summary>
     /// Set tenant ID on entity if it has TenantId property
     /// </summary>
-    protected virtual void SetTenantId(T entity)
+    protected virtual async Task SetTenantIdAsync(T entity)
     {
         var tenantIdProperty = entity.GetType().GetProperty("TenantId");
         if (tenantIdProperty != null && tenantIdProperty.PropertyType == typeof(Guid))
         {
-            var currentTenantId = _tenantContext.GetCurrentTenantId();
+            var currentTenantId = await _tenantContext.GetCurrentTenantIdAsync();
             if (currentTenantId.HasValue)
             {
                 tenantIdProperty.SetValue(entity, currentTenantId.Value);
             }
         }
     }
-    
+
     /// <summary>
     /// Apply tenant and soft delete filters manually when global filters aren't working
     /// </summary>
-    protected virtual IQueryable<T> ApplyTenantAndSoftDeleteFilters(IQueryable<T> query)
+    protected virtual async Task<IQueryable<T>> ApplyTenantAndSoftDeleteFilters(IQueryable<T> query)
     {
         // Apply tenant filter if entity has TenantId property
         if (typeof(T).GetProperty("TenantId") != null)
         {
-            var currentTenantId = _tenantContext.GetCurrentTenantId();
+            var currentTenantId = await _tenantContext.GetCurrentTenantIdAsync();
             if (currentTenantId.HasValue)
             {
                 query = query.Where(e => EF.Property<Guid>(e, "TenantId") == currentTenantId.Value);
             }
         }
-        
+
         // Apply soft delete filter if entity has IsDeleted property
         if (typeof(T).GetProperty("IsDeleted") != null)
         {
             query = query.Where(e => !EF.Property<bool>(e, "IsDeleted"));
         }
-        
+
         return query;
     }
 }
@@ -286,19 +286,20 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 /// </summary>
 public class NonTenantRepository<T> : BaseRepository<T> where T : class
 {
-    public NonTenantRepository(PlatformDbContext context, ITenantContext tenantContext) 
+    public NonTenantRepository(PlatformDbContext context, ITenantContext tenantContext)
         : base(context, tenantContext)
     {
     }
 
-    protected override void SetTenantId(T entity)
+    protected override Task SetTenantIdAsync(T entity)
     {
         // Don't set tenant ID for non-tenant entities
+        return Task.CompletedTask;
     }
 
-    protected override bool CanIgnoreFilters()
+    protected override async Task<bool> CanIgnoreFilters()
     {
         // Non-tenant entities don't need filter checks
-        return true;
+        return await Task.FromResult(true);
     }
 }
