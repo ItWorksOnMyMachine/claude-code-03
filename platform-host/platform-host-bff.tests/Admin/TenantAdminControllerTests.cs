@@ -78,7 +78,10 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                     options.DefaultAuthenticateScheme = "Test";
                     options.DefaultChallengeScheme = "Test";
                 })
-                .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
+                .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => 
+                {
+                    options.IsAuthenticated = true;
+                });
 
                 // Configure static OIDC configuration to avoid network calls
                 services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
@@ -286,11 +289,17 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            if (!Options.IsAuthenticated)
+            {
+                return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
             var claims = new[]
             {
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Test Admin"),
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "test-admin-user"),
-                new System.Security.Claims.Claim("sub", "test-admin-user")
+                new System.Security.Claims.Claim("sub", "test-admin-user"),
+                new System.Security.Claims.Claim("session_id", "test-session")
             };
 
             var identity = new System.Security.Claims.ClaimsIdentity(claims, "Test");
@@ -301,7 +310,10 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
         }
     }
 
-    public class TestAuthenticationSchemeOptions : AuthenticationSchemeOptions { }
+    public class TestAuthenticationSchemeOptions : AuthenticationSchemeOptions 
+    { 
+        public bool IsAuthenticated { get; set; } = false;
+    }
 
     // Test session service implementation for testing
     private class TestSessionService : ISessionService

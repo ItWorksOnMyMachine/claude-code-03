@@ -7,6 +7,7 @@ using PlatformBff.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Moq;
 using System.Threading.Tasks;
+using System.Security.Claims;
 
 namespace PlatformBff.Tests.Services;
 
@@ -24,164 +25,156 @@ public class TenantContextTests
     }
 
     [Fact]
-    public void TenantContext_Should_Return_TenantId_From_Session()
+    public async Task TenantContext_Should_Return_TenantId_From_Session()
     {
         // Arrange
         var expectedTenantId = Guid.NewGuid();
-        var sessionData = new SessionData
-        {
-            SessionId = "test-session",
-            UserId = "test-user",
-            SelectedTenantId = expectedTenantId
-        };
+        var sessionId = "test-session-123";
 
         var httpContext = new DefaultHttpContext();
-        var cookies = new TestRequestCookieCollection();
-        cookies.Add("platform.session", "test-session");
-        httpContext.Request.Cookies = cookies;
+        var claims = new[]
+        {
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        httpContext.User = principal;
 
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync("test-session"))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(expectedTenantId.ToString()));
 
         // Act
-        var actualTenantId = _tenantContext.GetCurrentTenantIdAsync();
+        var actualTenantId = await _tenantContext.GetCurrentTenantIdAsync();
 
         // Assert
         actualTenantId.Should().Be(expectedTenantId);
     }
 
     [Fact]
-    public void TenantContext_Should_Return_Null_When_No_Session()
+    public async Task TenantContext_Should_Return_Null_When_No_Session()
     {
         // Arrange
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns((HttpContext?)null);
 
         // Act
-        var tenantId = _tenantContext.GetCurrentTenantIdAsync();
+        var tenantId = await _tenantContext.GetCurrentTenantIdAsync();
 
         // Assert
         tenantId.Should().BeNull();
     }
 
     [Fact]
-    public void TenantContext_Should_Return_Null_When_No_Cookie()
+    public async Task TenantContext_Should_Return_Null_When_No_SessionId_Claim()
     {
         // Arrange
         var httpContext = new DefaultHttpContext();
-        httpContext.Request.Cookies = new TestRequestCookieCollection();
+        // User with no session_id claim
+        var identity = new ClaimsIdentity();
+        var principal = new ClaimsPrincipal(identity);
+        httpContext.User = principal;
 
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
 
         // Act
-        var tenantId = _tenantContext.GetCurrentTenantIdAsync();
+        var tenantId = await _tenantContext.GetCurrentTenantIdAsync();
 
         // Assert
         tenantId.Should().BeNull();
     }
 
     [Fact]
-    public void TenantContext_Should_Return_Null_When_Session_Has_No_Tenant()
+    public async Task TenantContext_Should_Return_Null_When_Session_Has_No_Tenant()
     {
-        // Arrange
-        var sessionData = new SessionData
+        // Arrange - session has no tenant selected
+        var sessionId = "test-session-123";
+        var httpContext = new DefaultHttpContext();
+        var claims = new[]
         {
-            SessionId = "test-session",
-            UserId = "test-user",
-            SelectedTenantId = null
+            new Claim("session_id", sessionId)
         };
-
-        var httpContext = new DefaultHttpContext();
-        var cookies = new TestRequestCookieCollection();
-        cookies.Add("platform.session", "test-session");
-        httpContext.Request.Cookies = cookies;
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        httpContext.User = principal;
 
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync("test-session"))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetMissing()); // No tenant selected
 
         // Act
-        var tenantId = _tenantContext.GetCurrentTenantIdAsync();
+        var tenantId = await _tenantContext.GetCurrentTenantIdAsync();
 
         // Assert
         tenantId.Should().BeNull();
     }
 
     [Fact]
-    public void TenantContext_SetTenant_Should_Throw_NotSupportedException()
+    public async Task TenantContext_SetTenant_Should_Throw_NotSupportedException()
     {
         // Arrange
         var tenantId = Guid.NewGuid();
 
         // Act & Assert
-        Assert.Throws<NotSupportedException>(() => _tenantContext.SetTenant(tenantId));
+        await Assert.ThrowsAsync<NotSupportedException>(() => _tenantContext.SetTenant(tenantId));
     }
 
     [Fact]
-    public void TenantContext_ClearTenant_Should_Throw_NotSupportedException()
+    public async Task TenantContext_ClearTenant_Should_Throw_NotSupportedException()
     {
         // Act & Assert
-        Assert.Throws<NotSupportedException>(() => _tenantContext.ClearTenant());
+        await Assert.ThrowsAsync<NotSupportedException>(() => _tenantContext.ClearTenant());
     }
 
-    [Fact]
-    public void TenantContext_SetUserId_Should_Throw_NotSupportedException()
-    {
-        // Act & Assert
-        Assert.Throws<NotSupportedException>(() => _tenantContext.SetUserId("test-user"));
-    }
 
     [Fact]
-    public void TenantContext_Should_Identify_Platform_Tenant()
+    public async Task TenantContext_Should_Identify_Platform_Tenant()
     {
         // Arrange
         var platformTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var sessionData = new SessionData
-        {
-            SessionId = "test-session",
-            UserId = "admin-user",
-            SelectedTenantId = platformTenantId
-        };
+        var sessionId = "test-session-123";
 
         var httpContext = new DefaultHttpContext();
-        var cookies = new TestRequestCookieCollection();
-        cookies.Add("platform.session", "test-session");
-        httpContext.Request.Cookies = cookies;
+        var claims = new[]
+        {
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        httpContext.User = principal;
 
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync("test-session"))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(platformTenantId.ToString()));
 
         // Act
-        var isPlatformTenant = _tenantContext.IsPlatformTenant();
+        var isPlatformTenant = await _tenantContext.IsPlatformTenant();
 
         // Assert
         isPlatformTenant.Should().BeTrue();
     }
 
     [Fact]
-    public void TenantContext_Should_Return_UserId_From_Session()
+    public async Task TenantContext_Should_Return_UserId_From_Session()
     {
         // Arrange
         var expectedUserId = "test-user-123";
-        var sessionData = new SessionData
-        {
-            SessionId = "test-session",
-            UserId = expectedUserId,
-            SelectedTenantId = Guid.NewGuid()
-        };
+        var sessionId = "test-session-123";
 
         var httpContext = new DefaultHttpContext();
-        var cookies = new TestRequestCookieCollection();
-        cookies.Add("platform.session", "test-session");
-        httpContext.Request.Cookies = cookies;
+        var claims = new[]
+        {
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        httpContext.User = principal;
 
         _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync("test-session"))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(expectedUserId));
 
         // Act
-        var actualUserId = _tenantContext.GetCurrentUserId();
+        var actualUserId = await _tenantContext.GetCurrentUserId();
 
         // Assert
         actualUserId.Should().Be(expectedUserId);

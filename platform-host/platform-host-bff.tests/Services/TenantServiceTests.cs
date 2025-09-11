@@ -229,7 +229,7 @@ public class TenantServiceTests : IDisposable
         Assert.Equal(_testTenantId, result.Id);
         Assert.Equal("test-tenant", result.Name);
         Assert.Equal("Test Tenant", result.DisplayName);
-        Assert.Equal("User", result.UserRole);
+        Assert.Contains("User", result.UserRoles);
     }
     
     [Fact]

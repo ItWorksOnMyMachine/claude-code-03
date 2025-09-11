@@ -37,6 +37,7 @@ public class TestAuthenticationHandler : AuthenticationHandler<TestAuthenticatio
         {
             new Claim(ClaimTypes.Name, "Test User"),
             new Claim(ClaimTypes.NameIdentifier, "test-user-id"),
+            new Claim("session_id", "test-session"),
         };
 
         var identity = new ClaimsIdentity(claims, "Test");

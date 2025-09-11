@@ -100,7 +100,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         // Create a new context with tenant filtering
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -181,10 +181,10 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext1 = new Mock<ITenantContext>();
-        tenantContext1.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext1.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var tenantContext2 = new Mock<ITenantContext>();
-        tenantContext2.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant2Id);
+        tenantContext2.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant2Id);
 
         var repository1 = new BaseRepository<Role>(_context, tenantContext1.Object);
         var repository2 = new BaseRepository<Role>(_context, tenantContext2.Object);
@@ -206,8 +206,8 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_platformTenantId);
-        tenantContext.Setup(x => x.IsPlatformTenant()).Returns(true);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_platformTenantId);
+        tenantContext.Setup(x => x.IsPlatformTenant()).ReturnsAsync(true);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
@@ -223,7 +223,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
@@ -253,7 +253,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
@@ -282,7 +282,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
@@ -303,7 +303,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
@@ -324,7 +324,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 
@@ -345,7 +345,7 @@ public class BaseRepositoryTests : IDisposable
     {
         // Arrange
         var tenantContext = new Mock<ITenantContext>();
-        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).Returns(_tenant1Id);
+        tenantContext.Setup(x => x.GetCurrentTenantIdAsync()).ReturnsAsync(_tenant1Id);
 
         var repository = new BaseRepository<Role>(_context, tenantContext.Object);
 

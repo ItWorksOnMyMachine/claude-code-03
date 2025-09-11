@@ -12,7 +12,9 @@
       "Bash(git reset:*)",
       "Bash(rm:*)",
       "Bash(echo $USERPROFILE)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(dotnet build)",
+      "Bash(dotnet build:*)"
     ],
     "deny": [],
     "ask": []

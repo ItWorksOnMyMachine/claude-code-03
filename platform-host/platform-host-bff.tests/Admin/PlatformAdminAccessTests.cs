@@ -73,7 +73,10 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
                     options.DefaultAuthenticateScheme = "Test";
                     options.DefaultChallengeScheme = "Test";
                 })
-                .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
+                .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => 
+                {
+                    options.IsAuthenticated = true;
+                });
 
                 // Configure static OIDC configuration to avoid network calls
                 services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
@@ -284,14 +287,18 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
 
             // Initialize test session
             _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.UserId)}"] = "test-user";
-            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.SelectedTenantId)}"] = _selectedTenantId?.ToString() ?? (_isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : null);
+            var tenantId = _selectedTenantId?.ToString() ?? (_isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : "");
+            if (!string.IsNullOrEmpty(tenantId))
+            {
+                _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.SelectedTenantId)}"] = tenantId;
+            }
         }
 
         public Task<HasValueOrMissingResult<string>> GetSessionDataAsync(string sessionId, string name)
         {
             _sessionData.TryGetValue($"{sessionId}:{name}", out var sessionData);
             return Task.FromResult(sessionData != null
-                ? HasValueOrMissingResult<string>.SetValue(sessionData.GetType().GetProperty(name)?.GetValue(sessionData)?.ToString() ?? "")
+                ? HasValueOrMissingResult<string>.SetValue(sessionData)
                 : HasValueOrMissingResult<string>.SetMissing());
         }
 
@@ -311,7 +318,7 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
 
         public Task RemoveSessionDataAsync(string sessionId, string name)
         {
-            _sessionData.Remove($"test-session:{sessionId}:{name}");
+            _sessionData.Remove($"{sessionId}:{name}");
             return Task.CompletedTask;
         }
 
@@ -408,11 +415,17 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
 
         protected override Task<Microsoft.AspNetCore.Authentication.AuthenticateResult> HandleAuthenticateAsync()
         {
+            if (!Options.IsAuthenticated)
+            {
+                return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.NoResult());
+            }
+
             var claims = new[]
             {
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Test User"),
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "test-user"),
-                new System.Security.Claims.Claim("sub", "test-user")
+                new System.Security.Claims.Claim("sub", "test-user"),
+                new System.Security.Claims.Claim("session_id", "test-session")
             };
 
             var identity = new System.Security.Claims.ClaimsIdentity(claims, "Test");
@@ -423,5 +436,8 @@ public class PlatformAdminAccessTests : IClassFixture<WebApplicationFactory<Prog
         }
     }
 
-    private class TestAuthenticationSchemeOptions : Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions { }
+    private class TestAuthenticationSchemeOptions : Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions 
+    { 
+        public bool IsAuthenticated { get; set; } = false;
+    }
 }

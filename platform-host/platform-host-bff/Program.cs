@@ -282,7 +282,6 @@ if (app.Environment.EnvironmentName != "Testing")
 }
 
 app.UseRouting();
-app.UseSession(); // Add session middleware
 
 // Add authentication middleware
 app.UseAuthentication();

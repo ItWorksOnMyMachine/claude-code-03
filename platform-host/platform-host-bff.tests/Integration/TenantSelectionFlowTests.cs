@@ -84,28 +84,26 @@ public class TenantSelectionFlowTests
         _cacheMock.Setup(x => x.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string key, CancellationToken token) =>
                 cacheData.ContainsKey(key) ? cacheData[key] : null);
+
+        _cacheMock.Setup(x => x.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, CancellationToken>((key, token) => cacheData.Remove(key))
+            .Returns(Task.CompletedTask);
     }
 
     [Fact]
     public async Task Complete_Tenant_Selection_Flow_Should_Work()
     {
-        // Step 1: User authenticates and session is created
-        var initialSessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            Username = "testuser",
-            Email = "test@example.com",
-            ExpiresAt = DateTime.UtcNow.AddHours(2)
-        };
-
-        await _sessionService.StoreSessionDataAsync(_sessionId, initialSessionData);
+        // Step 1: User authenticates and session is created (only store UserId as per new session pattern)
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId), _userId, DateTime.UtcNow.AddHours(2));
 
         // Verify session was stored
-        var storedSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        Assert.NotNull(storedSession);
-        Assert.Equal(_userId, storedSession.UserId);
-        Assert.Null(storedSession.SelectedTenantId);
+        var userIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId));
+        Assert.True(userIdResult.HasValue);
+        Assert.Equal(_userId, userIdResult.Value);
+
+        // Verify no tenant is selected initially
+        var tenantIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        Assert.True(tenantIdResult.IsMissing);
 
         // Step 2: Get available tenants for user
         var availableTenants = new List<TenantInfo>
@@ -115,14 +113,14 @@ public class TenantSelectionFlowTests
                 Id = _tenantId1,
                 Name = "Tenant One",
                 IsPlatformTenant = false,
-                UserRole = "Admin"
+                UserRoles = new List<string> { "Admin" }
             },
             new TenantInfo
             {
                 Id = _tenantId2,
                 Name = "Tenant Two",
                 IsPlatformTenant = false,
-                UserRole = "User"
+                UserRoles = new List<string> { "User" }
             }
         };
 
@@ -147,23 +145,20 @@ public class TenantSelectionFlowTests
 
         var context = await _tenantServiceMock.Object.SelectTenantAsync(_userId, _tenantId1);
 
-        // Step 4: Update session with selected tenant
-        storedSession!.SelectedTenantId = context.TenantId;
-        storedSession.SelectedTenantName = context.TenantName;
-        storedSession.TenantRoles = context.UserRoles;
-        storedSession.TenantSelectedAt = context.SelectedAt;
-        storedSession.IsPlatformAdmin = context.IsPlatformAdmin;
+        // Step 4: Update session with selected tenant (only store SelectedTenantId as per new session pattern)
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), context.TenantId.ToString());
 
-        await _sessionService.StoreSessionDataAsync(_sessionId, storedSession);
+        // Step 5: Verify session state (only verify the stored session variables)
+        var finalUserIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId));
+        Assert.True(finalUserIdResult.HasValue);
+        Assert.Equal(_userId, finalUserIdResult.Value);
 
-        // Step 5: Verify complete session state
-        var finalSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        Assert.NotNull(finalSession);
-        Assert.Equal(_userId, finalSession.UserId);
-        Assert.Equal(_tenantId1, finalSession.SelectedTenantId);
-        Assert.Equal("Tenant One", finalSession.SelectedTenantName);
-        Assert.Contains("Admin", finalSession.TenantRoles);
-        Assert.False(finalSession.IsPlatformAdmin);
+        var finalTenantIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        Assert.True(finalTenantIdResult.HasValue);
+        Assert.Equal(_tenantId1.ToString(), finalTenantIdResult.Value);
+
+        // Note: Other data like TenantName, UserRoles, etc. are now pulled live from the tenant service,
+        // not stored in session to avoid race conditions
 
         // Step 6: Validate user can access the selected tenant
         _tenantServiceMock.Setup(x => x.ValidateAccessAsync(_userId, _tenantId1))
@@ -176,20 +171,9 @@ public class TenantSelectionFlowTests
     [Fact]
     public async Task Tenant_Switch_Flow_Should_Update_Session()
     {
-        // Setup: User already has a tenant selected
-        var sessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            Username = "testuser",
-            Email = "test@example.com",
-            SelectedTenantId = _tenantId1,
-            SelectedTenantName = "Tenant One",
-            TenantRoles = new List<string> { "Admin" },
-            ExpiresAt = DateTime.UtcNow.AddHours(2)
-        };
-
-        await _sessionService.StoreSessionDataAsync(_sessionId, sessionData);
+        // Setup: User already has a tenant selected (only store essential session variables)
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId), _userId, DateTime.UtcNow.AddHours(2));
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), _tenantId1.ToString());
 
         // User switches to a different tenant
         var newTenantContext = new TenantContext
@@ -206,22 +190,15 @@ public class TenantSelectionFlowTests
 
         var context = await _tenantServiceMock.Object.SelectTenantAsync(_userId, _tenantId2);
 
-        // Update session with new tenant
-        var currentSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        currentSession!.SelectedTenantId = context.TenantId;
-        currentSession.SelectedTenantName = context.TenantName;
-        currentSession.TenantRoles = context.UserRoles;
-        currentSession.TenantSelectedAt = context.SelectedAt;
+        // Update session with new tenant (only store SelectedTenantId)
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), context.TenantId.ToString());
 
-        await _sessionService.StoreSessionDataAsync(_sessionId, currentSession);
+        // Verify tenant was switched (only verify stored session variables)
+        var tenantIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        Assert.True(tenantIdResult.HasValue);
+        Assert.Equal(_tenantId2.ToString(), tenantIdResult.Value);
 
-        // Verify tenant was switched
-        var updatedSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        Assert.NotNull(updatedSession);
-        Assert.Equal(_tenantId2, updatedSession.SelectedTenantId);
-        Assert.Equal("Tenant Two", updatedSession.SelectedTenantName);
-        Assert.Contains("User", updatedSession.TenantRoles);
-        Assert.DoesNotContain("Admin", updatedSession.TenantRoles);
+        // Note: TenantName, UserRoles etc. are now pulled live from tenant service to avoid race conditions
     }
 
     [Fact]
@@ -230,16 +207,8 @@ public class TenantSelectionFlowTests
         // Setup platform admin tenant
         var platformTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
-        var sessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            Username = "admin",
-            Email = "admin@platform.com",
-            ExpiresAt = DateTime.UtcNow.AddHours(2)
-        };
-
-        await _sessionService.StoreSessionDataAsync(_sessionId, sessionData);
+        // Setup session for platform admin (only store UserId)
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId), _userId, DateTime.UtcNow.AddHours(2));
 
         // Admin selects platform tenant
         var platformContext = new TenantContext
@@ -259,21 +228,15 @@ public class TenantSelectionFlowTests
 
         var context = await _tenantServiceMock.Object.SelectTenantAsync(_userId, platformTenantId);
 
-        // Update session
-        var currentSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        currentSession!.SelectedTenantId = context.TenantId;
-        currentSession.SelectedTenantName = context.TenantName;
-        currentSession.TenantRoles = context.UserRoles;
-        currentSession.IsPlatformAdmin = context.IsPlatformAdmin;
+        // Update session (only store SelectedTenantId)
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), context.TenantId.ToString());
 
-        await _sessionService.StoreSessionDataAsync(_sessionId, currentSession);
+        // Verify platform admin status (only verify stored session variables)
+        var tenantIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        Assert.True(tenantIdResult.HasValue);
+        Assert.Equal(platformTenantId.ToString(), tenantIdResult.Value);
 
-        // Verify platform admin status
-        var finalSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        Assert.NotNull(finalSession);
-        Assert.Equal(platformTenantId, finalSession.SelectedTenantId);
-        Assert.True(finalSession.IsPlatformAdmin);
-        Assert.Contains("Admin", finalSession.TenantRoles);
+        // Note: IsPlatformAdmin and TenantRoles are now checked live from tenant service
 
         // Verify IsPlatformAdmin check
         var isPlatformAdmin = await _tenantServiceMock.Object.IsPlatformAdminAsync(_userId);
@@ -284,55 +247,26 @@ public class TenantSelectionFlowTests
     public async Task Clear_Tenant_Selection_Should_Remove_Tenant_From_Session()
     {
         // Setup: User has a tenant selected
-        var sessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            Username = "testuser",
-            Email = "test@example.com",
-            SelectedTenantId = _tenantId1,
-            SelectedTenantName = "Tenant One",
-            TenantRoles = new List<string> { "Admin" },
-            IsPlatformAdmin = false,
-            ExpiresAt = DateTime.UtcNow.AddHours(2)
-        };
-
-        await _sessionService.StoreSessionDataAsync(_sessionId, sessionData);
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId), _userId, DateTime.UtcNow.AddHours(2));
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), _tenantId1.ToString());
 
         // Clear tenant selection
-        var currentSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        currentSession!.SelectedTenantId = null;
-        currentSession.SelectedTenantName = null;
-        currentSession.TenantRoles = new List<string>();
-        currentSession.TenantSelectedAt = null;
-        currentSession.IsPlatformAdmin = false;
-
-        await _sessionService.StoreSessionDataAsync(_sessionId, currentSession);
+        await _sessionService.RemoveSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
 
         // Verify tenant was cleared
-        var clearedSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        Assert.NotNull(clearedSession);
-        Assert.Equal(_userId, clearedSession.UserId); // User still authenticated
-        Assert.Null(clearedSession.SelectedTenantId);
-        Assert.Null(clearedSession.SelectedTenantName);
-        Assert.Empty(clearedSession.TenantRoles);
-        Assert.False(clearedSession.IsPlatformAdmin);
+        var userIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId));
+        Assert.True(userIdResult.HasValue);
+        Assert.Equal(_userId, userIdResult.Value); // User still authenticated
+
+        var tenantIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        Assert.True(tenantIdResult.IsMissing); // Tenant cleared
     }
 
     [Fact]
     public async Task Invalid_Tenant_Selection_Should_Fail()
     {
         // Setup
-        var sessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            Username = "testuser",
-            Email = "test@example.com",
-            ExpiresAt = DateTime.UtcNow.AddHours(2)
-        };
-
-        await _sessionService.StoreSessionDataAsync(_sessionId, sessionData);
+        await _sessionService.StoreSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId), _userId, DateTime.UtcNow.AddHours(2));
 
         // Try to select a tenant user doesn't have access to
         var invalidTenantId = Guid.NewGuid();
@@ -352,9 +286,8 @@ public class TenantSelectionFlowTests
         var hasAccess = await _tenantServiceMock.Object.ValidateAccessAsync(_userId, invalidTenantId);
         Assert.False(hasAccess);
 
-        // Verify session remains unchanged
-        var unchangedSession = await _sessionService.GetSessionDataAsync(_sessionId);
-        Assert.NotNull(unchangedSession);
-        Assert.Null(unchangedSession.SelectedTenantId);
+        // Verify session remains unchanged - no tenant should be selected
+        var tenantIdResult = await _sessionService.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        Assert.True(tenantIdResult.IsMissing); // No tenant selected
     }
 }

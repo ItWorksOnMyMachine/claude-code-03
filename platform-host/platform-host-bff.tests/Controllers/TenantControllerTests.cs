@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -48,23 +49,34 @@ public class TenantControllerTests
             _loggerMock.Object
         );
         
-        // Setup HTTP context with cookies
+        // Setup HTTP context with user claims
         _httpContext = new DefaultHttpContext();
-        var requestCookies = new TestRequestCookieCollection();
-        requestCookies.Add("platform.session", _sessionId);
-        _httpContext.Request.Cookies = requestCookies;
+        var claims = new[]
+        {
+            new Claim("session_id", _sessionId),
+            new Claim(ClaimTypes.NameIdentifier, _userId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = _httpContext
         };
+
+        // Setup default session service mocks for UserId
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.UserId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_userId));
     }
     
     [Fact]
     public async Task GetCurrentTenant_Should_Return_Unauthorized_When_No_Session()
     {
-        // Arrange
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(); // No cookies
+        // Arrange - clear user claims to simulate no session
+        var identity = new ClaimsIdentity(); // No claims
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         // Act
         var result = await _controller.GetCurrentTenant();
@@ -78,15 +90,9 @@ public class TenantControllerTests
     [Fact]
     public async Task GetCurrentTenant_Should_Return_No_Tenant_Selected_When_Session_Has_No_Tenant()
     {
-        // Arrange
-        var sessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            SelectedTenantId = null
-        };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        // Arrange - mock session service to return empty value instead of missing
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue("")); // Empty tenant selection
         
         // Act
         var result = await _controller.GetCurrentTenant();
@@ -101,18 +107,9 @@ public class TenantControllerTests
     [Fact]
     public async Task GetCurrentTenant_Should_Return_Tenant_Context_When_Tenant_Selected()
     {
-        // Arrange
-        var sessionData = new SessionData
-        {
-            SessionId = _sessionId,
-            UserId = _userId,
-            SelectedTenantId = _testTenantId,
-            SelectedTenantName = "Test Tenant",
-            TenantRoles = new List<string> { "User" },
-            TenantSelectedAt = DateTime.UtcNow
-        };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        // Arrange - mock session service to return selected tenant
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         var tenantInfo = new TenantInfo
         {
@@ -145,8 +142,8 @@ public class TenantControllerTests
             UserId = _userId,
             SelectedTenantId = _testTenantId
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         var tenants = new List<TenantInfo>
         {
@@ -176,8 +173,8 @@ public class TenantControllerTests
             SessionId = _sessionId,
             UserId = _userId
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         var tenantContext = new TenantContext
         {
@@ -202,13 +199,12 @@ public class TenantControllerTests
         Assert.NotNull(response.Tenant);
         Assert.Contains("Successfully selected tenant", response.Message);
         
-        // Verify session was updated
-        _sessionServiceMock.Verify(x => x.UpdateSessionDataAsync(
+        // Verify session was updated (only SelectedTenantId is stored now)
+        _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(
             _sessionId, 
-            It.Is<SessionData>(sd => 
-                sd.SelectedTenantId == _testTenantId &&
-                sd.SelectedTenantName == "Test Tenant"
-            )), Times.Once);
+            nameof(PlatformBffSessionKeys.SelectedTenantId),
+            _testTenantId.ToString(),
+            It.IsAny<DateTimeOffset?>()), Times.Once);
     }
     
     [Fact]
@@ -220,8 +216,8 @@ public class TenantControllerTests
             SessionId = _sessionId,
             UserId = _userId
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         _tenantServiceMock.Setup(x => x.SelectTenantAsync(_userId, _testTenantId))
             .ThrowsAsync(new UnauthorizedAccessException());
@@ -244,8 +240,8 @@ public class TenantControllerTests
             SessionId = _sessionId,
             UserId = _userId
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         var tenantContext = new TenantContext
         {
@@ -282,8 +278,8 @@ public class TenantControllerTests
             TenantRoles = new List<string> { "User" },
             IsPlatformAdmin = false
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         // Act
         var result = await _controller.ClearTenantSelection();
@@ -294,15 +290,10 @@ public class TenantControllerTests
         Assert.True(response.Success);
         Assert.Equal("Tenant selection cleared", response.Message);
         
-        // Verify session was cleared
-        _sessionServiceMock.Verify(x => x.UpdateSessionDataAsync(
+        // Verify session tenant was cleared (SelectedTenantId removed)
+        _sessionServiceMock.Verify(x => x.RemoveSessionDataAsync(
             _sessionId,
-            It.Is<SessionData>(sd =>
-                sd.SelectedTenantId == null &&
-                sd.SelectedTenantName == null &&
-                sd.TenantRoles.Count == 0 &&
-                sd.IsPlatformAdmin == false
-            )), Times.Once);
+            nameof(PlatformBffSessionKeys.SelectedTenantId)), Times.Once);
     }
     
     [Fact]
@@ -317,8 +308,8 @@ public class TenantControllerTests
             SelectedTenantName = "Test Tenant",
             TenantRoles = new List<string> { "User" }
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         // Tenant no longer exists or user lost access
         _tenantServiceMock.Setup(x => x.GetTenantAsync(_userId, _testTenantId))
@@ -333,13 +324,10 @@ public class TenantControllerTests
         Assert.False(response.HasSelectedTenant);
         Assert.Equal("Previously selected tenant is no longer available", response.Message);
         
-        // Verify session was cleared
-        _sessionServiceMock.Verify(x => x.UpdateSessionDataAsync(
+        // Verify session user was cleared (UserId removed)
+        _sessionServiceMock.Verify(x => x.RemoveSessionDataAsync(
             _sessionId,
-            It.Is<SessionData>(sd =>
-                sd.SelectedTenantId == null &&
-                sd.SelectedTenantName == null
-            )), Times.Once);
+            nameof(PlatformBffSessionKeys.UserId)), Times.Once);
     }
     
     [Fact]
@@ -351,8 +339,8 @@ public class TenantControllerTests
             SessionId = _sessionId,
             UserId = _userId
         };
-        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId))
-            .ReturnsAsync(sessionData);
+        _sessionServiceMock.Setup(x => x.GetSessionDataAsync(_sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId)))
+            .ReturnsAsync(HasValueOrMissingResult<string>.SetValue(_testTenantId.ToString()));
         
         var tenantContext = new TenantContext
         {
@@ -375,10 +363,12 @@ public class TenantControllerTests
         var response = Assert.IsType<TenantSelectionResponse>(okResult.Value);
         Assert.True(response.Success);
         
-        // Verify IsPlatformAdmin was set
-        _sessionServiceMock.Verify(x => x.UpdateSessionDataAsync(
+        // Note: IsPlatformAdmin is now determined live from tenant service, not stored in session
+        // Verify tenant selection was stored
+        _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(
             _sessionId,
-            It.Is<SessionData>(sd => sd.IsPlatformAdmin == true)
-        ), Times.Once);
+            nameof(PlatformBffSessionKeys.SelectedTenantId),
+            It.IsAny<string>(),
+            It.IsAny<DateTimeOffset?>()), Times.Once);
     }
 }

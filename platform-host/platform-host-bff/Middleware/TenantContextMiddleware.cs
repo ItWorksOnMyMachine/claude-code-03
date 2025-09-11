@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http;
+using PlatformBff.Models;
 using PlatformBff.Services;
 using System;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace PlatformBff.Middleware;
@@ -16,27 +16,29 @@ public class TenantContextMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext)
+    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, ISessionService sessionService)
     {
         // Try to get tenant from session first
         Guid? tenantId = null;
         string? userId = null;
 
-        // Extract tenant from session if available
-        if (context.Session != null)
+        // Extract session ID from authentication cookie
+        var sessionId = context.User?.FindFirst("session_id")?.Value;
+        
+        if (!string.IsNullOrEmpty(sessionId))
         {
-            if (context.Session.TryGetValue("TenantId", out var tenantBytes))
+            // Get tenant from custom session service
+            var tenantResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+            if (tenantResult.HasValue && Guid.TryParse(tenantResult.Value, out var parsedTenantId))
             {
-                var tenantString = Encoding.UTF8.GetString(tenantBytes);
-                if (Guid.TryParse(tenantString, out var parsedTenantId))
-                {
-                    tenantId = parsedTenantId;
-                }
+                tenantId = parsedTenantId;
             }
 
-            if (context.Session.TryGetValue("UserId", out var userBytes))
+            // Get user from custom session service
+            var userResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            if (userResult.HasValue)
             {
-                userId = Encoding.UTF8.GetString(userBytes);
+                userId = userResult.Value;
             }
         }
 

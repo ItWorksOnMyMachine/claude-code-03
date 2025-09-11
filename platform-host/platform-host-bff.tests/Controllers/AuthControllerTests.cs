@@ -80,15 +80,19 @@ public class AuthControllerTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
 
         // Act
         var result = await _controller.Logout();
 
         // Assert
+        _sessionServiceMock.Verify(x => x.RevokeTokensAsync(sessionId), Times.Once);
         _sessionServiceMock.Verify(x => x.RemoveSessionAsync(sessionId), Times.Once);
         var signOutResult = Assert.IsType<SignOutResult>(result);
         Assert.Contains(OpenIdConnectDefaults.AuthenticationScheme, signOutResult.AuthenticationSchemes);
@@ -199,10 +203,13 @@ public class AuthControllerTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
 
         var existingTokens = new TokenData
         {
@@ -218,10 +225,7 @@ public class AuthControllerTests
         var result = await _controller.RefreshToken();
 
         // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result);
-        var refreshResponse = Assert.IsType<RefreshTokenResponse>(okResult.Value);
-        Assert.True(refreshResponse.Success);
-        Assert.True(refreshResponse.ExpiresAt > DateTime.UtcNow);
+        var noContentResult = Assert.IsType<NoContentResult>(result);
     }
 
     [Fact]

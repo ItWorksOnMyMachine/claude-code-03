@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -43,8 +44,10 @@ public class TokenRefreshMiddlewareTests
     [Fact]
     public async Task Should_Skip_When_No_Session_Cookie()
     {
-        // Arrange
-        _httpContext.Request.Cookies = new TestRequestCookieCollection();
+        // Arrange - no user claims set, so no session_id claim
+        var identity = new ClaimsIdentity(); // No claims
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
 
         // Act
         await _middleware.InvokeAsync(_httpContext, _sessionServiceMock.Object);
@@ -58,10 +61,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var tokens = new TokenData
         {
@@ -85,10 +91,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var tokens = new TokenData
         {
@@ -120,10 +129,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var tokens = new TokenData
         {
@@ -150,10 +162,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var tokens = new TokenData
         {
@@ -177,10 +192,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var tokens = new TokenData
         {
@@ -207,7 +225,7 @@ public class TokenRefreshMiddlewareTests
 
         // Assert
         _sessionServiceMock.Verify(x => x.StoreTokensAsync(sessionId, newTokens), Times.Once);
-        _sessionServiceMock.Verify(x => x.ExtendSessionAsync(sessionId, It.IsAny<TimeSpan>()), Times.Once);
+        // Note: ExtendSessionAsync no longer exists - session extension is handled automatically by StoreTokensAsync
     }
 
     [Fact]
@@ -215,10 +233,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var tokens = new TokenData
         {
@@ -259,10 +280,13 @@ public class TokenRefreshMiddlewareTests
     {
         // Arrange
         var sessionId = "test-session-id";
-        _httpContext.Request.Cookies = new TestRequestCookieCollection(new Dictionary<string, string>
+        var claims = new[]
         {
-            ["platform.session"] = sessionId
-        });
+            new Claim("session_id", sessionId)
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        _httpContext.User = principal;
         
         var oldTokens = new TokenData
         {

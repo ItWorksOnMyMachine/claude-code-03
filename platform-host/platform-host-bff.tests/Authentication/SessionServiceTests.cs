@@ -133,7 +133,7 @@ public class SessionServiceTests
         ), Times.Once);
 
         _cacheMock.Verify(x => x.RemoveAsync(
-            It.Is<string>(key => key == $"session:data:{sessionId}"),
+            It.Is<string>(key => key == $"session:platform-bff:{sessionId}"),
             It.IsAny<CancellationToken>()
         ), Times.Once);
     }
