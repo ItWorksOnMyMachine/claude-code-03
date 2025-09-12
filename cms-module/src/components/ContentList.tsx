@@ -1,0 +1,105 @@
+import React from 'react';
+import { 
+  Box, 
+  Typography, 
+  Paper, 
+  Button, 
+  List, 
+  ListItem, 
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  Chip
+} from '@mui/material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import { Link } from '@modern-js/runtime/router';
+
+interface PlatformContext {
+  authToken?: string;
+  tenantId?: string;
+  userId?: string;
+}
+
+interface ContentListProps extends PlatformContext {}
+
+const ContentList: React.FC<ContentListProps> = ({ tenantId, userId }) => {
+  // Mock data for initial development
+  const mockContent = [
+    { id: 1, title: 'Homepage Content', type: 'page', status: 'published', lastModified: '2025-09-11' },
+    { id: 2, title: 'About Us Page', type: 'page', status: 'draft', lastModified: '2025-09-10' },
+    { id: 3, title: 'Product Landing', type: 'template', status: 'published', lastModified: '2025-09-09' },
+  ];
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Content Management
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          component={Link}
+          to="/content/new"
+          sx={{ ml: 'auto' }}
+        >
+          Create New Content
+        </Button>
+      </Box>
+
+      {tenantId && (
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          Tenant: {tenantId} | User: {userId}
+        </Typography>
+      )}
+
+      <Paper sx={{ width: '100%' }}>
+        <List>
+          {mockContent.map((item) => (
+            <ListItem key={item.id} divider>
+              <ListItemText
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6">{item.title}</Typography>
+                    <Chip 
+                      label={item.status} 
+                      color={item.status === 'published' ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </Box>
+                }
+                secondary={
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">
+                      Type: {item.type} • Last modified: {item.lastModified}
+                    </Typography>
+                  </Box>
+                }
+              />
+              <ListItemSecondaryAction>
+                <IconButton
+                  edge="end"
+                  aria-label="edit"
+                  component={Link}
+                  to={`/content/edit/${item.id}`}
+                  sx={{ mr: 1 }}
+                >
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </ListItemSecondaryAction>
+            </ListItem>
+          ))}
+        </List>
+      </Paper>
+    </Box>
+  );
+};
+
+export default ContentList;

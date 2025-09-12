@@ -14,7 +14,10 @@
       "Bash(echo $USERPROFILE)",
       "Bash(dotnet test:*)",
       "Bash(dotnet build)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Read(//c/Users/Brian/.agent-os/instructions/meta/**)",
+      "Bash(git checkout:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []

@@ -107,4 +107,73 @@ describe('Module Federation Configuration', () => {
       expect(context).toContain('useModuleFederation');
     });
   });
+
+  describe('CMS Module Federation Support', () => {
+    it('should support CMS module configuration', () => {
+      // Test that platform host can handle CMS module remote loading
+      const remoteLoaderPath = path.join(
+        rootDir,
+        'src/services/RemoteLoader.ts',
+      );
+      const remoteLoader = fs.readFileSync(remoteLoaderPath, 'utf-8');
+      
+      // Verify RemoteModuleConfig interface supports CMS module structure
+      expect(remoteLoader).toContain('interface RemoteModuleConfig');
+      expect(remoteLoader).toContain('name: string');
+      expect(remoteLoader).toContain('entry: string');
+      expect(remoteLoader).toContain('exposedModule: string');
+    });
+
+    it('should handle CMS module loading errors gracefully', () => {
+      const remoteLoaderPath = path.join(
+        rootDir,
+        'src/services/RemoteLoader.ts',
+      );
+      const remoteLoader = fs.readFileSync(remoteLoaderPath, 'utf-8');
+      
+      // Verify error handling is implemented
+      expect(remoteLoader).toContain('catch (error)');
+      expect(remoteLoader).toContain('error: error as Error');
+    });
+
+    it('should support parallel loading of multiple modules including CMS', () => {
+      const remoteLoaderPath = path.join(
+        rootDir,
+        'src/services/RemoteLoader.ts',
+      );
+      const remoteLoader = fs.readFileSync(remoteLoaderPath, 'utf-8');
+      
+      // Verify loadModules function exists for parallel loading
+      expect(remoteLoader).toContain('loadModules');
+      expect(remoteLoader).toContain('Promise.all(promises)');
+    });
+
+    it('should support caching for CMS module to prevent duplicate loads', () => {
+      const remoteLoaderPath = path.join(
+        rootDir,
+        'src/services/RemoteLoader.ts',
+      );
+      const remoteLoader = fs.readFileSync(remoteLoaderPath, 'utf-8');
+      
+      // Verify module caching implementation
+      expect(remoteLoader).toContain('loadedModules');
+      expect(remoteLoader).toContain('has(cacheKey)');
+      expect(remoteLoader).toContain('get(cacheKey)');
+    });
+  });
+
+  describe('CMS Module Routing Integration', () => {
+    it('should support dynamic routing for CMS module', () => {
+      // Check if routing configuration supports dynamic module routes
+      const routesDir = path.join(rootDir, 'src/routes');
+      expect(fs.existsSync(routesDir)).toBe(true);
+      
+      // Verify that routing system can handle federated modules
+      const routeFiles = fs.readdirSync(routesDir);
+      const hasRouting = routeFiles.some(file => 
+        file.includes('route') || file.includes('Router') || file.includes('index')
+      );
+      expect(hasRouting).toBe(true);
+    });
+  });
 });

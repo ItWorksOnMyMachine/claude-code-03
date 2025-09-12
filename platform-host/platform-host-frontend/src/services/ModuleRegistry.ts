@@ -13,11 +13,26 @@ export interface ModuleRegistryEntry {
   dependencies?: string[];
   permissions?: string[];
   metadata?: Record<string, any>;
+  healthCheckUrl?: string;
+  requiredEntitlements?: string[];
+  tags?: string[];
 }
 
 export class ModuleRegistry {
   private modules: Map<string, ModuleRegistryEntry> = new Map();
   private listeners: Set<(modules: ModuleRegistryEntry[]) => void> = new Set();
+  private moduleHealthStatus: Map<string, boolean> = new Map();
+  private initialized: boolean = false;
+
+  /**
+   * Initialize with default modules (called lazily)
+   */
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      this.initializeDefaultModules();
+      this.initialized = true;
+    }
+  }
 
   /**
    * Register a module in the registry
@@ -63,6 +78,7 @@ export class ModuleRegistry {
    * Get all registered modules
    */
   getAllModules(): ModuleRegistryEntry[] {
+    this.ensureInitialized();
     return Array.from(this.modules.values());
   }
 
@@ -139,6 +155,8 @@ export class ModuleRegistry {
    */
   clear(): void {
     this.modules.clear();
+    this.moduleHealthStatus.clear();
+    this.initialized = false;
     this.notifyListeners();
   }
 
@@ -195,6 +213,113 @@ export class ModuleRegistry {
   import(modules: ModuleRegistryEntry[]): void {
     this.clear();
     this.registerBatch(modules);
+  }
+
+  /**
+   * Initialize with default modules like CMS
+   */
+  private initializeDefaultModules(): void {
+    // Register CMS module directly without triggering listeners (to avoid circular dependency)
+    this.modules.set('cmsModule', {
+      name: 'cmsModule',
+      entry: 'https://cms.platform.local:3003/remoteEntry.js',
+      exposedModule: './CmsApp',
+      displayName: 'Content Management System',
+      route: '/cms',
+      enabled: true,
+      icon: 'EditNote',
+      description: 'Create and manage content using a visual editor',
+      version: '1.0.0',
+      healthCheckUrl: 'https://cms.platform.local:3003/health',
+      requiredEntitlements: ['CMS_ACCESS'],
+      tags: ['content', 'editor', 'cms'],
+      permissions: ['CMS_MANAGE', 'CMS_ASSETS'],
+    });
+  }
+
+  /**
+   * Check health status of a specific module
+   */
+  async checkModuleHealth(moduleName: string): Promise<boolean> {
+    const module = this.modules.get(moduleName);
+    if (!module) {
+      return false;
+    }
+
+    try {
+      const url = module.healthCheckUrl || module.entry;
+      const response = await fetch(url, {
+        method: 'HEAD',
+        mode: 'no-cors',
+      });
+      
+      this.moduleHealthStatus.set(moduleName, true);
+      return true;
+    } catch (error) {
+      console.warn(`Health check failed for module ${moduleName}:`, error);
+      this.moduleHealthStatus.set(moduleName, false);
+      return false;
+    }
+  }
+
+  /**
+   * Check health status of all modules
+   */
+  async checkAllModuleHealth(): Promise<Map<string, boolean>> {
+    const healthPromises = Array.from(this.modules.keys()).map(async (moduleName) => {
+      const isHealthy = await this.checkModuleHealth(moduleName);
+      return { moduleName, isHealthy };
+    });
+
+    const results = await Promise.allSettled(healthPromises);
+    
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        this.moduleHealthStatus.set(result.value.moduleName, result.value.isHealthy);
+      }
+    });
+
+    return new Map(this.moduleHealthStatus);
+  }
+
+  /**
+   * Get module health status
+   */
+  getModuleHealthStatus(moduleName: string): boolean | undefined {
+    return this.moduleHealthStatus.get(moduleName);
+  }
+
+  /**
+   * Get modules filtered by user entitlements
+   */
+  getModulesForUser(userEntitlements: string[] = []): ModuleRegistryEntry[] {
+    return this.getEnabledModules().filter(module => {
+      if (!module.requiredEntitlements || module.requiredEntitlements.length === 0) {
+        return true;
+      }
+      
+      return module.requiredEntitlements.some(entitlement =>
+        userEntitlements.includes(entitlement)
+      );
+    });
+  }
+
+  /**
+   * Search modules by name, description, or tags
+   */
+  searchModules(query: string): ModuleRegistryEntry[] {
+    const lowercaseQuery = query.toLowerCase();
+    
+    return this.getAllModules().filter(module => {
+      const nameMatch = module.name.toLowerCase().includes(lowercaseQuery);
+      const displayNameMatch = module.displayName.toLowerCase().includes(lowercaseQuery);
+      const descriptionMatch = module.description?.toLowerCase().includes(lowercaseQuery);
+      const tagMatch = module.tags?.some(tag => 
+        tag.toLowerCase().includes(lowercaseQuery)
+      );
+      
+      return nameMatch || displayNameMatch || descriptionMatch || tagMatch;
+    });
   }
 }
 

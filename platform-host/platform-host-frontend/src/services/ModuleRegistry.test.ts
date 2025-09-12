@@ -95,9 +95,10 @@ describe('ModuleRegistry Service', () => {
       modules.forEach(m => registry.register(m));
       
       const allModules = registry.getAllModules();
-      expect(allModules).toHaveLength(2);
+      expect(allModules).toHaveLength(3); // Includes CMS module + 2 test modules
       expect(allModules.map(m => m.name)).toContain('module1');
       expect(allModules.map(m => m.name)).toContain('module2');
+      expect(allModules.map(m => m.name)).toContain('cmsModule');
     });
 
     it('should list only enabled modules', () => {
@@ -123,8 +124,9 @@ describe('ModuleRegistry Service', () => {
       modules.forEach(m => registry.register(m));
       
       const enabledModules = registry.getEnabledModules();
-      expect(enabledModules).toHaveLength(1);
-      expect(enabledModules[0].name).toBe('module1');
+      expect(enabledModules).toHaveLength(2); // Includes CMS module + module1
+      expect(enabledModules.map(m => m.name)).toContain('module1');
+      expect(enabledModules.map(m => m.name)).toContain('cmsModule');
     });
 
     it('should check if a module exists', () => {
@@ -234,10 +236,11 @@ describe('ModuleRegistry Service', () => {
       ];
 
       registry.registerBatch(modules);
-      expect(registry.getAllModules()).toHaveLength(2);
+      expect(registry.getAllModules()).toHaveLength(3); // Includes CMS module + 2 test modules
       
       registry.clear();
-      expect(registry.getAllModules()).toHaveLength(0);
+      // After clear, CMS module will be re-initialized on next access  
+      expect(registry.getAllModules()).toHaveLength(1); // CMS module is re-initialized
     });
   });
 });

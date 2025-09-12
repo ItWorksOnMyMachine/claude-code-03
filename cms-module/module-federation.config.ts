@@ -2,9 +2,11 @@ import { createModuleFederationConfig } from '@module-federation/modern-js';
 import pkg from './package.json' assert { type: 'json' };
 
 export default createModuleFederationConfig({
-  name: 'platform_host',
-  remotes: {
-    cmsModule: 'cmsModule@https://cms.platform.local:3003/remoteEntry.js',
+  name: 'cmsModule',
+  filename: 'remoteEntry.js',
+  exposes: {
+    './CmsApp': './src/CmsApp',
+    './CmsRouter': './src/CmsRouter',
   },
   shared: {
     react: {
@@ -17,8 +19,6 @@ export default createModuleFederationConfig({
       eager: true,
       requiredVersion: pkg.dependencies['react-dom'],
     },
-
-    // Pin MUI versions; keep styled-engine and emotion unshared
     '@mui/material': {
       singleton: true,
       eager: true,
@@ -37,11 +37,6 @@ export default createModuleFederationConfig({
       version: pkg.dependencies['@mui/icons-material'],
       requiredVersion: pkg.dependencies['@mui/icons-material'],
     },
-
-    // '@mui/styled-engine': undefined,
-    // '@emotion/react': undefined,
-    // '@emotion/styled': undefined,
-
     '@tanstack/react-query': {
       singleton: true,
       requiredVersion: pkg.dependencies['@tanstack/react-query'],
@@ -50,7 +45,15 @@ export default createModuleFederationConfig({
       singleton: true,
       requiredVersion: pkg.dependencies['@modern-js/runtime'],
     },
+    // Emotion dependencies are NOT shared to prevent styling conflicts
+    '@emotion/react': false,
+    '@emotion/styled': false,
+    // GrapesJS dependencies are not shared to avoid version conflicts
+    'grapesjs': false,
+    'grapesjs-react': false,
+    'grapesjs-preset-webpage': false,
+    'grapesjs-plugin-forms': false,
+    'react-dropzone': false,
+    'dompurify': false,
   },
-  // Enable runtime plugins for dynamic remote loading
-  runtimePlugins: ['./src/runtime/module-federation-plugin.ts'],
 });
