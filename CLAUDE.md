@@ -95,6 +95,47 @@ dotnet build
 dotnet test --filter "FullyQualifiedName~LoginEndpointTests"
 ```
 
+### CMS Module
+
+#### CMS Frontend (modules/cms-module/cms-frontend)
+
+```bash
+cd modules/cms-module/cms-frontend
+
+# Development server (runs on port 3003)
+npm run dev
+
+# Production build
+npm run build
+
+# Run tests
+npm test
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+```
+
+#### CMS Backend (modules/cms-module/cms-bff)
+
+```bash
+cd modules/cms-module/cms-bff
+
+# Run development server (runs on port 5001)
+dotnet run
+
+# Run tests
+dotnet test
+
+# Build project
+dotnet build
+
+# Run specific test
+dotnet test --filter "FullyQualifiedName~CmsControllerTests"
+```
+
 ## Architecture Patterns
 
 ### Module Federation Configuration

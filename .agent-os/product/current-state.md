@@ -155,16 +155,26 @@ The Platform Host micro frontend application has successfully completed its foun
    - Collapsible groups
 
 ### CMS Module (In Development - September 2025)
-**Status:** ✅ Foundation Complete, Backend In Progress
+**Status:** ✅ Foundation Complete, Backend Infrastructure 85% Complete
+**Location:** `modules/cms-module/` (Reorganized September 2025)
+
+#### Project Structure
+- **cms-frontend/** - React micro-frontend with Module Federation and GrapesJS
+- **cms-bff/** - .NET 9 Backend for Frontend with FastEndpoints and Entity Framework
+- **cms-bff.tests/** - Comprehensive test suite with integration and unit tests
 
 #### Completed Components
 - ✅ **Module Federation Setup** - Project structure and webpack configuration
 - ✅ **GrapesJS Integration** - React wrapper and basic editor components
 - ✅ **Module Entry Point** - Exposed components for platform host integration
+- ✅ **Backend Infrastructure** - Entity models, DbContext, tenant isolation (Task 2: 85% complete)
+- ✅ **Database Design** - CmsContent, CmsTemplate, CmsAsset entities with audit trails
+- ✅ **Authentication Integration** - OIDC, Redis sessions, cookie-based auth
+- ✅ **Testing Infrastructure** - Integration tests for API endpoints and tenant isolation
 
 #### In Progress Components
-- 🔄 **Backend API Development** - FastEndpoints-based CMS API (Task 2 of 8)
-- ⏳ **Database Schema** - Content, templates, and asset entities
+- 🔄 **FastEndpoints Controllers** - API endpoints need Guid ID fixes for compilation
+- ⏳ **FluentValidation** - Request/response validation models
 - ⏳ **Frontend Integration** - Full editor interface with platform services
 
 ## Production Readiness

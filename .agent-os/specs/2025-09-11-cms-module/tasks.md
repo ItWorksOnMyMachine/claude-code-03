@@ -13,13 +13,13 @@
   - [x] 1.8 Verify all tests pass
 
 - [ ] 2. Implement Backend Infrastructure with FastEndpoints
-  - [ ] 2.1 Write tests for CMS API endpoints and tenant isolation
-  - [ ] 2.2 Create database context and entity models for CMS tables
-  - [ ] 2.3 Implement Entity Framework migrations for CMS schema
-  - [ ] 2.4 Create FastEndpoints controllers for content management
-  - [ ] 2.5 Implement tenant context integration and data isolation
+  - [x] 2.1 Write tests for CMS API endpoints and tenant isolation
+  - [x] 2.2 Create database context and entity models for CMS tables
+  - [x] 2.3 Implement Entity Framework migrations for CMS schema
+  - [ ] 2.4 Create FastEndpoints controllers for content management ⚠️ (Controllers created but need Guid ID fixes)
+  - [x] 2.5 Implement tenant context integration and data isolation
   - [ ] 2.6 Add request/response validation with FluentValidation
-  - [ ] 2.7 Configure authentication and authorization middleware
+  - [x] 2.7 Configure authentication and authorization middleware
   - [ ] 2.8 Verify all tests pass
 
 - [ ] 3. Set Up Frontend Micro-Frontend with Module Federation
