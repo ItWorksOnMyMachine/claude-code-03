@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using CmsBff.Data;
 using CmsBff.Data.Entities;
 using CmsBff.Services;
+using Xunit;
 
 namespace CmsBff.Tests.Services;
 
@@ -105,7 +106,7 @@ public class CmsTemplateServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().BeGreaterThan(0);
+        result.Id.Should().NotBe(Guid.Empty);
         result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         result.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
 

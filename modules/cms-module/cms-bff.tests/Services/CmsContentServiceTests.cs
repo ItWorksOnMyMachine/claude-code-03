@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using CmsBff.Data;
 using CmsBff.Data.Entities;
 using CmsBff.Services;
+using Xunit;
 
 namespace CmsBff.Tests.Services;
 
@@ -79,7 +80,7 @@ public class CmsContentServiceTests : IDisposable
     public async Task GetByIdAsync_WithInvalidId_ReturnsNull()
     {
         // Act
-        var result = await _service.GetByIdAsync(999);
+        var result = await _service.GetByIdAsync(Guid.NewGuid());
 
         // Assert
         result.Should().BeNull();
@@ -126,7 +127,7 @@ public class CmsContentServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().BeGreaterThan(0);
+        result.Id.Should().NotBe(Guid.Empty);
         result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         result.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
 
@@ -178,14 +179,14 @@ public class CmsContentServiceTests : IDisposable
         var updateContent = new CmsContent { Title = "Updated Title" };
 
         // Act
-        var result = await _service.UpdateAsync(999, updateContent);
+        var result = await _service.UpdateAsync(Guid.NewGuid(), updateContent);
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task DeleteAsync_WithValidId_DeletesContentAndReturnsTrue()
+    public async Task DeleteAsync_WithValidId_SoftDeletesContentAndReturnsTrue()
     {
         // Arrange
         var content = new CmsContent 
@@ -203,15 +204,26 @@ public class CmsContentServiceTests : IDisposable
 
         // Assert
         result.Should().BeTrue();
-        var deletedContent = await _context.Contents.FindAsync(content.Id);
-        deletedContent.Should().BeNull();
+        
+        // Verify soft delete - content should still exist but marked as deleted
+        var deletedContent = await _context.Contents
+            .IgnoreQueryFilters() // Bypass soft delete filter to check the actual state
+            .FirstOrDefaultAsync(c => c.Id == content.Id);
+            
+        deletedContent.Should().NotBeNull();
+        deletedContent!.IsDeleted.Should().BeTrue();
+        deletedContent.DeletedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
+        
+        // Verify that normal queries don't return the deleted content
+        var activeContent = await _context.Contents.FirstOrDefaultAsync(c => c.Id == content.Id);
+        activeContent.Should().BeNull();
     }
 
     [Fact]
     public async Task DeleteAsync_WithInvalidId_ReturnsFalse()
     {
         // Act
-        var result = await _service.DeleteAsync(999);
+        var result = await _service.DeleteAsync(Guid.NewGuid());
 
         // Assert
         result.Should().BeFalse();
