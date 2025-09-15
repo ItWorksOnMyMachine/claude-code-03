@@ -122,11 +122,16 @@ The following features have been implemented:
   - [ ] Module-provided navigation registration
   - [ ] Collapsible menu groups
   - [ ] Active state management
-- [ ] CMS micro frontend stub with GrapesJS - `L`
-  - [ ] Basic GrapesJS integration
-  - [ ] Page creation and editing
-  - [ ] Template system
-  - [ ] Preview functionality
+
+### CMS Module (In Development - September 2025)
+- [x] CMS module project structure and Module Federation setup - `M`
+- [x] Basic GrapesJS integration with React wrapper - `L`
+- [x] CMS module entry point and webpack configuration - `M`
+- [ ] CMS backend API with FastEndpoints - `L`
+- [ ] Database schema for content management - `M`
+- [ ] Frontend content editor integration - `M`
+- [ ] Asset management system - `M`
+- [ ] Entitlement-based access controls - `S`
 
 ### Dependencies
 - Entitlement database schema design
