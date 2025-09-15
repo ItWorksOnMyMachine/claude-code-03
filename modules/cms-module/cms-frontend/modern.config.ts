@@ -20,6 +20,27 @@ export default defineConfig({
     assetPrefix: '/',
     polyfill: 'off',
     disableTsChecker: false,
+    distPath: {
+      root: 'dist',
+      js: 'static/js',
+      css: 'static/css',
+      image: 'static/images',
+      font: 'static/fonts',
+      html: '',
+    },
+    cleanDistPath: true,
+    enableAssetManifest: true,
+    enableInlineScripts: false,
+    enableInlineStyles: false,
+  },
+  performance: {
+    chunkSplit: {
+      strategy: 'split-by-experience',
+      minSize: 20000,
+      maxSize: 244000,
+    },
+    buildCache: true,
+    removeMomentJs: true,
   },
   tools: {
     devServer: {
