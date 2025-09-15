@@ -2,10 +2,11 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using CmsBff.Data.Entities;
 using CmsBff.Services;
+using PlatformShared.Authorization;
 
 namespace CmsBff.Endpoints.Templates;
 
-[HttpGet("/templates"), Authorize]
+[HttpGet("/templates"), Authorize, RequireCmsTemplates]
 public class GetAllTemplatesEndpoint : EndpointWithoutRequest<IEnumerable<CmsTemplate>>
 {
     private readonly CmsTemplateService _templateService;

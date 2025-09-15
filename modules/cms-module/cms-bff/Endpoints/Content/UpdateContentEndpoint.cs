@@ -4,6 +4,7 @@ using CmsBff.Data.Entities;
 using CmsBff.Services;
 using FluentValidation;
 using PlatformShared.Services;
+using PlatformShared.Authorization;
 
 namespace CmsBff.Endpoints.Content;
 
@@ -56,7 +57,7 @@ public class UpdateContentValidator : Validator<UpdateContentRequest>
     }
 }
 
-[HttpPut("/content/{id}"), Authorize]
+[HttpPut("/content/{id}"), Authorize, RequireCmsManage]
 public class UpdateContentEndpoint : Endpoint<UpdateContentRequest, CmsContent>
 {
     private readonly CmsContentService _contentService;

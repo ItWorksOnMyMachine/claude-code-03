@@ -2,6 +2,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using CmsBff.Services;
 using PlatformShared.Services;
+using PlatformShared.Authorization;
 
 namespace CmsBff.Endpoints.Content;
 
@@ -10,7 +11,7 @@ public class DeleteContentRequest
     public Guid Id { get; set; }
 }
 
-[HttpDelete("/content/{id}"), Authorize]
+[HttpDelete("/content/{id}"), Authorize, RequireCmsManage]
 public class DeleteContentEndpoint : Endpoint<DeleteContentRequest>
 {
     private readonly CmsContentService _contentService;

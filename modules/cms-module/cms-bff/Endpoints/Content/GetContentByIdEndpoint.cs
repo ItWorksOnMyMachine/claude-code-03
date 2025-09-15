@@ -2,6 +2,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using CmsBff.Data.Entities;
 using CmsBff.Services;
+using PlatformShared.Authorization;
 
 namespace CmsBff.Endpoints.Content;
 
@@ -10,7 +11,7 @@ public class GetContentByIdRequest
     public Guid Id { get; set; }
 }
 
-[HttpGet("/content/{id}"), Authorize]
+[HttpGet("/content/{id}"), Authorize, RequireCmsAccess]
 public class GetContentByIdEndpoint : Endpoint<GetContentByIdRequest, CmsContent>
 {
     private readonly CmsContentService _contentService;

@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ISessionService, DistributedSessionService>();
         services.AddScoped<ITenantContext, TenantContext>();
+        services.AddScoped<IEntitlementService, EntitlementService>();
 
         return services;
     }

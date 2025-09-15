@@ -12,7 +12,6 @@ using StackExchange.Redis;
 using PlatformBff.Middleware;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Claims;
-using FastEndpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,9 +32,6 @@ if (!builder.Environment.IsEnvironment("Testing"))
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
-
-// Add FastEndpoints
-builder.Services.AddFastEndpoints();
 builder.Services.AddHttpContextAccessor();
 
 // Add DbContext with PostgreSQL and tenant context
@@ -99,9 +95,6 @@ builder.Services.AddScoped<ISessionService, DistributedSessionService>();
 // Add Tenant Services
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<ITenantAdminService, TenantAdminService>();
-
-// Add Shared Services
-builder.Services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 
 #if DEBUG
 var expiresTimeSpan = TimeSpan.FromDays(1);
@@ -300,7 +293,6 @@ app.UseAuthorization();
 
 app.UseTenantContext(); // Add tenant context middleware after authentication
 app.MapControllers();
-app.UseFastEndpoints();
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
