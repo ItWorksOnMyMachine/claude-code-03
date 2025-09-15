@@ -22,15 +22,15 @@
   - [x] 2.7 Configure authentication and authorization middleware
   - [x] 2.8 Verify all tests pass
 
-- [ ] 3. Set Up Frontend Micro-Frontend with Module Federation
-  - [ ] 3.1 Write tests for Module Federation configuration and remote loading
-  - [ ] 3.2 Configure webpack Module Federation plugin for CMS module
-  - [ ] 3.3 Create CMS module entry point and exposed components
-  - [ ] 3.4 Implement routing for /cms path activation
-  - [ ] 3.5 Create base CMS layout and navigation components
-  - [ ] 3.6 Set up Material-UI theme integration with platform host
-  - [ ] 3.7 Configure API client for CMS BFF communication
-  - [ ] 3.8 Verify all tests pass
+- [x] 3. Set Up Frontend Micro-Frontend with Module Federation
+  - [x] 3.1 Write tests for Module Federation configuration and remote loading
+  - [x] 3.2 Configure webpack Module Federation plugin for CMS module
+  - [x] 3.3 Create CMS module entry point and exposed components
+  - [x] 3.4 Implement routing for /cms path activation
+  - [x] 3.5 Create base CMS layout and navigation components
+  - [x] 3.6 Set up Material-UI theme integration with platform host
+  - [x] 3.7 Configure API client for CMS BFF communication
+  - [x] 3.8 Verify all tests pass
 
 - [ ] 4. Database Schema Implementation and Migrations
   - [ ] 4.1 Write tests for database models and relationships
