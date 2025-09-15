@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.DataProtection;
-using StackExchange.Redis;
 using CmsBff.Data;
 using CmsBff.Services;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using PlatformShared.Extensions;
+using PlatformShared.Services;
+using PlatformShared.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,67 +16,18 @@ builder.Services.AddFastEndpoints();
 builder.Services.AddDbContext<CmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add Redis for session storage
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = redisConnectionString;
-});
+// Add shared platform services (Redis, Data Protection, Session, Tenant Context)
+builder.Services.AddPlatformSharedServices(builder.Configuration);
 
-// Add Data Protection with Redis
-builder.Services.AddDataProtection()
-    .PersistKeysToStackExchangeRedis(ConnectionMultiplexer.Connect(redisConnectionString), "cms-bff-data-protection-keys");
-
-// Add Authentication
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-})
-.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-{
-    options.Cookie.Name = "cms.auth";
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.SlidingExpiration = true;
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
-})
-.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
-{
-    options.Authority = builder.Configuration["Authentication:Authority"];
-    options.ClientId = builder.Configuration["Authentication:ClientId"];
-    options.ClientSecret = builder.Configuration["Authentication:ClientSecret"];
-    options.ResponseType = "code";
-    options.Scope.Clear();
-    options.Scope.Add("openid");
-    options.Scope.Add("profile");
-    options.Scope.Add("platform-api");
-    options.SaveTokens = true;
-    options.GetClaimsFromUserInfoEndpoint = true;
-});
-
-// Add Authorization
-builder.Services.AddAuthorization();
-
-// Add HTTP context accessor for tenant context
-builder.Services.AddHttpContextAccessor();
-
-// Add session state
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromHours(8);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-});
+// Add shared platform authentication
+builder.Services.AddPlatformAuthentication(builder.Configuration);
 
 // Add CMS services
 builder.Services.AddScoped<CmsContentService>();
 builder.Services.AddScoped<CmsAssetService>();
 builder.Services.AddScoped<CmsTemplateService>();
-builder.Services.AddScoped<ITenantContext, TenantContext>();
+
+// Note: ITenantContext is now provided by PlatformSharedServices
 
 // Add CORS for development
 builder.Services.AddCors(options =>

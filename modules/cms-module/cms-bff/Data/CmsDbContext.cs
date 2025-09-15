@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using CmsBff.Data.Entities;
-using CmsBff.Services;
+using PlatformShared.Services;
 using System;
 using System.Linq;
 using System.Threading;

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using CmsBff.Data;
 using CmsBff.Data.Entities;
+using PlatformShared.Services;
 
 namespace CmsBff.Services;
 

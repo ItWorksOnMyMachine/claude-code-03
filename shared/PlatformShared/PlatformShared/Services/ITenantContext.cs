@@ -1,7 +1,11 @@
 using System;
+using System.Threading.Tasks;
 
-namespace CmsBff.Services;
+namespace PlatformShared.Services;
 
+/// <summary>
+/// Service for managing tenant context across BFF services
+/// </summary>
 public interface ITenantContext
 {
     /// <summary>

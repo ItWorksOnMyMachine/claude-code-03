@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using CmsBff.Data.Entities;
 using CmsBff.Services;
 using FluentValidation;
+using PlatformShared.Services;
 
 namespace CmsBff.Endpoints.Content;
 

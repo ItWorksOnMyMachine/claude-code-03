@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using CmsBff.Services;
+using PlatformShared.Services;
 
 namespace CmsBff.Endpoints.Content;
 
