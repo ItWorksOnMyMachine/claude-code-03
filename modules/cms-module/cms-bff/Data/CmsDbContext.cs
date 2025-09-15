@@ -35,6 +35,8 @@ public class CmsDbContext : DbContext
     public DbSet<CmsContent> Contents => Set<CmsContent>();
     public DbSet<CmsTemplate> Templates => Set<CmsTemplate>();
     public DbSet<CmsAsset> Assets => Set<CmsAsset>();
+    public DbSet<CmsPage> Pages => Set<CmsPage>();
+    public DbSet<CmsContentBlock> ContentBlocks => Set<CmsContentBlock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,15 +63,13 @@ public class CmsDbContext : DbContext
             entity.HasIndex(e => e.Status)
                 .HasFilter("\"IsDeleted\" = false");
 
-            // Configure relationship with CmsTemplate
+            // Configure relationship with CmsTemplate (legacy support)
             entity.HasOne(e => e.Template)
-                  .WithMany(t => t.Contents)
+                  .WithMany()
                   .HasForeignKey(e => e.TemplateId)
                   .OnDelete(DeleteBehavior.SetNull);
 
-            // Configure many-to-many relationship with CmsAsset
-            entity.HasMany(e => e.Assets)
-                  .WithMany(a => a.Contents);
+            // Note: Asset relationships are now handled through CmsContentBlock entities
 
             // Global query filter for soft delete and tenant isolation
             entity.HasQueryFilter(e => !e.IsDeleted &&
@@ -83,6 +83,7 @@ public class CmsDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.TemplateType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.LayoutContent).HasColumnType("jsonb");
 
             entity.HasIndex(e => new { e.TenantId, e.Name })
                 .IsUnique()
@@ -105,11 +106,15 @@ public class CmsDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.OriginalFileName).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.FilePath).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.StoragePath).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.PublicUrl).HasMaxLength(500);
             entity.Property(e => e.MimeType).HasMaxLength(100).IsRequired();
             entity.Property(e => e.AssetType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.AltText).HasMaxLength(255);
             entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Tags).HasColumnType("jsonb");
+            entity.Property(e => e.Metadata).HasColumnType("jsonb");
+            entity.Property(e => e.ContentHash).HasMaxLength(64);
 
             entity.HasIndex(e => e.TenantId)
                 .HasFilter("\"IsDeleted\" = false");
@@ -119,6 +124,82 @@ public class CmsDbContext : DbContext
 
             entity.HasIndex(e => e.FileName)
                 .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => e.ContentHash)
+                .HasFilter("\"IsDeleted\" = false");
+
+            // Global query filter for soft delete and tenant isolation
+            entity.HasQueryFilter(e => !e.IsDeleted &&
+                (_currentTenantId == null || e.TenantId == _currentTenantId));
+        });
+
+        // Configure CmsPage
+        modelBuilder.Entity<CmsPage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Slug).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.MetaTitle).HasMaxLength(60);
+            entity.Property(e => e.MetaDescription).HasMaxLength(160);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.FeaturedImageUrl).HasMaxLength(500);
+            entity.Property(e => e.Metadata).HasColumnType("jsonb");
+
+            // Unique constraint on slug per tenant
+            entity.HasIndex(e => new { e.TenantId, e.Slug })
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => e.TenantId)
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => e.Status)
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => e.SortOrder)
+                .HasFilter("\"IsDeleted\" = false");
+
+            // Foreign key relationships
+            entity.HasOne(e => e.Template)
+                  .WithMany(t => t.Pages)
+                  .HasForeignKey(e => e.TemplateId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ParentPage)
+                  .WithMany(p => p.ChildPages)
+                  .HasForeignKey(e => e.ParentPageId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Global query filter for soft delete and tenant isolation
+            entity.HasQueryFilter(e => !e.IsDeleted &&
+                (_currentTenantId == null || e.TenantId == _currentTenantId));
+        });
+
+        // Configure CmsContentBlock
+        modelBuilder.Entity<CmsContentBlock>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PageId).IsRequired();
+            entity.Property(e => e.BlockType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Zone).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(100);
+            entity.Property(e => e.Content).HasColumnType("jsonb");
+            entity.Property(e => e.Configuration).HasColumnType("jsonb");
+
+            entity.HasIndex(e => e.TenantId)
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => new { e.PageId, e.Zone, e.SortOrder })
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => e.BlockType)
+                .HasFilter("\"IsDeleted\" = false");
+
+            // Foreign key relationship with cascade delete
+            entity.HasOne(e => e.Page)
+                  .WithMany(p => p.ContentBlocks)
+                  .HasForeignKey(e => e.PageId)
+                  .OnDelete(DeleteBehavior.Cascade);
 
             // Global query filter for soft delete and tenant isolation
             entity.HasQueryFilter(e => !e.IsDeleted &&

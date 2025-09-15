@@ -48,5 +48,4 @@ public class CmsContent : IAuditableEntity
 
     // Navigation properties
     public CmsTemplate? Template { get; set; }
-    public ICollection<CmsAsset> Assets { get; set; } = new List<CmsAsset>();
 }

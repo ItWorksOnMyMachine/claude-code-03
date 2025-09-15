@@ -32,15 +32,15 @@
   - [x] 3.7 Configure API client for CMS BFF communication
   - [x] 3.8 Verify all tests pass
 
-- [ ] 4. Database Schema Implementation and Migrations
-  - [ ] 4.1 Write tests for database models and relationships
-  - [ ] 4.2 Create Templates entity with JSON layout support
-  - [ ] 4.3 Create Pages entity with metadata and status tracking
-  - [ ] 4.4 Create ContentBlocks entity with positioning and content
-  - [ ] 4.5 Create Assets entity for media file management
-  - [ ] 4.6 Implement tenant isolation with foreign key constraints
-  - [ ] 4.7 Add database indexes for performance optimization
-  - [ ] 4.8 Verify all tests pass
+- [x] 4. Database Schema Implementation and Migrations
+  - [x] 4.1 Write tests for database models and relationships
+  - [x] 4.2 Create Templates entity with JSON layout support
+  - [x] 4.3 Create Pages entity with metadata and status tracking
+  - [x] 4.4 Create ContentBlocks entity with positioning and content
+  - [x] 4.5 Create Assets entity for media file management
+  - [x] 4.6 Implement tenant isolation with foreign key constraints
+  - [x] 4.7 Add database indexes for performance optimization
+  - [x] 4.8 Verify all tests pass
 
 - [ ] 5. Refactor and Centralize Shared Services
   - [ ] 5.1 Write tests for shared service interfaces and implementations

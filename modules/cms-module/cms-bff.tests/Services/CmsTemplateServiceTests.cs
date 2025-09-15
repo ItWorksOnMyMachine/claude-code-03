@@ -53,12 +53,12 @@ public class CmsTemplateServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByIdAsync_WithValidId_ReturnsTemplateWithContents()
+    public async Task GetByIdAsync_WithValidId_ReturnsTemplateWithPages()
     {
         // Arrange
-        var template = new CmsTemplate 
-        { 
-            Name = "Test Template", 
+        var template = new CmsTemplate
+        {
+            Name = "Test Template",
             TemplateType = "Article",
             CreatedBy = "Test",
             UpdatedBy = "Test"
@@ -66,15 +66,15 @@ public class CmsTemplateServiceTests : IDisposable
         _context.Templates.Add(template);
         await _context.SaveChangesAsync();
 
-        var content = new CmsContent 
-        { 
-            Title = "Content using template", 
-            Slug = "content-with-template", 
+        var page = new CmsPage
+        {
+            Title = "Content using template",
+            Slug = "content-with-template",
             TemplateId = template.Id,
             CreatedBy = "Test",
             UpdatedBy = "Test"
         };
-        _context.Contents.Add(content);
+        _context.Pages.Add(page);
         await _context.SaveChangesAsync();
 
         // Act
@@ -83,8 +83,8 @@ public class CmsTemplateServiceTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result!.Name.Should().Be("Test Template");
-        result.Contents.Should().HaveCount(1);
-        result.Contents.First().Title.Should().Be("Content using template");
+        result.Pages.Should().HaveCount(1);
+        result.Pages.First().Title.Should().Be("Content using template");
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class CmsTemplateServiceTests : IDisposable
         { 
             Name = "New Template", 
             Description = "Test template description",
-            TemplateContent = "<html><body>{{content}}</body></html>",
+            LayoutContent = "<html><body>{{content}}</body></html>",
             TemplateType = "Page",
             CreatedBy = "Test",
             UpdatedBy = "Test"
@@ -133,7 +133,7 @@ public class CmsTemplateServiceTests : IDisposable
         { 
             Name = "Updated Template", 
             Description = "Updated description",
-            TemplateContent = "<div>{{content}}</div>",
+            LayoutContent = "<div>{{content}}</div>",
             TemplateType = "Page",
             IsActive = false,
             UpdatedBy = "UpdatedUser"
@@ -179,9 +179,9 @@ public class CmsTemplateServiceTests : IDisposable
     public async Task DeleteAsync_WithTemplateInUse_ReturnsFalseAndDoesNotDelete()
     {
         // Arrange
-        var template = new CmsTemplate 
-        { 
-            Name = "Template in Use", 
+        var template = new CmsTemplate
+        {
+            Name = "Template in Use",
             TemplateType = "Article",
             CreatedBy = "Test",
             UpdatedBy = "Test"
@@ -189,15 +189,15 @@ public class CmsTemplateServiceTests : IDisposable
         _context.Templates.Add(template);
         await _context.SaveChangesAsync();
 
-        var content = new CmsContent 
-        { 
-            Title = "Content using template", 
-            Slug = "content-with-template", 
+        var page = new CmsPage
+        {
+            Title = "Content using template",
+            Slug = "content-with-template",
             TemplateId = template.Id,
             CreatedBy = "Test",
             UpdatedBy = "Test"
         };
-        _context.Contents.Add(content);
+        _context.Pages.Add(page);
         await _context.SaveChangesAsync();
 
         // Act

@@ -23,7 +23,7 @@ public class CmsTemplateService
     public async Task<CmsTemplate?> GetByIdAsync(Guid id)
     {
         return await _context.Templates
-            .Include(t => t.Contents)
+            .Include(t => t.Pages)
             .FirstOrDefaultAsync(t => t.Id == id);
     }
 
@@ -47,7 +47,7 @@ public class CmsTemplateService
 
         existingTemplate.Name = template.Name;
         existingTemplate.Description = template.Description;
-        existingTemplate.TemplateContent = template.TemplateContent;
+        existingTemplate.LayoutContent = template.LayoutContent;
         existingTemplate.TemplateType = template.TemplateType;
         existingTemplate.IsActive = template.IsActive;
         existingTemplate.UpdatedAt = DateTimeOffset.UtcNow;
@@ -63,9 +63,9 @@ public class CmsTemplateService
         if (template == null)
             return false;
 
-        // Check if template is being used by any content
-        var hasContent = await _context.Contents.AnyAsync(c => c.TemplateId == id);
-        if (hasContent)
+        // Check if template is being used by any pages
+        var hasPages = await _context.Pages.AnyAsync(p => p.TemplateId == id);
+        if (hasPages)
             return false; // Cannot delete template that's in use
 
         _context.Templates.Remove(template);

@@ -30,7 +30,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "old-file.jpg", 
             OriginalFileName = "old-file.jpg",
-            FilePath = "/uploads/old-file.jpg",
+            StoragePath = "/uploads/old-file.jpg",
             MimeType = "image/jpeg",
             FileSize = 1024,
             AssetType = "Image",
@@ -42,7 +42,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "new-file.jpg", 
             OriginalFileName = "new-file.jpg",
-            FilePath = "/uploads/new-file.jpg",
+            StoragePath = "/uploads/new-file.jpg",
             MimeType = "image/jpeg",
             FileSize = 2048,
             AssetType = "Image",
@@ -70,7 +70,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "test-file.pdf", 
             OriginalFileName = "test-file.pdf",
-            FilePath = "/uploads/test-file.pdf",
+            StoragePath = "/uploads/test-file.pdf",
             MimeType = "application/pdf",
             FileSize = 5120,
             AssetType = "Document",
@@ -97,7 +97,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "new-image.png", 
             OriginalFileName = "my-image.png",
-            FilePath = "/uploads/new-image.png",
+            StoragePath = "/uploads/new-image.png",
             MimeType = "image/png",
             FileSize = 3072,
             AssetType = "Image",
@@ -131,7 +131,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "original-file.jpg", 
             OriginalFileName = "original-file.jpg",
-            FilePath = "/uploads/original-file.jpg",
+            StoragePath = "/uploads/original-file.jpg",
             MimeType = "image/jpeg",
             FileSize = 2048,
             AssetType = "Image",
@@ -173,7 +173,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "asset-to-delete.jpg", 
             OriginalFileName = "asset-to-delete.jpg",
-            FilePath = "/uploads/asset-to-delete.jpg",
+            StoragePath = "/uploads/asset-to-delete.jpg",
             MimeType = "image/jpeg",
             FileSize = 1024,
             AssetType = "Image",
@@ -200,7 +200,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "image.jpg", 
             OriginalFileName = "image.jpg",
-            FilePath = "/uploads/image.jpg",
+            StoragePath = "/uploads/image.jpg",
             MimeType = "image/jpeg",
             FileSize = 2048,
             AssetType = "Image",
@@ -211,7 +211,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "document.pdf", 
             OriginalFileName = "document.pdf",
-            FilePath = "/uploads/document.pdf",
+            StoragePath = "/uploads/document.pdf",
             MimeType = "application/pdf",
             FileSize = 5120,
             AssetType = "Document",
@@ -239,7 +239,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "tagged-asset1.jpg", 
             OriginalFileName = "tagged-asset1.jpg",
-            FilePath = "/uploads/tagged-asset1.jpg",
+            StoragePath = "/uploads/tagged-asset1.jpg",
             MimeType = "image/jpeg",
             FileSize = 1024,
             AssetType = "Image",
@@ -251,7 +251,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "tagged-asset2.jpg", 
             OriginalFileName = "tagged-asset2.jpg",
-            FilePath = "/uploads/tagged-asset2.jpg",
+            StoragePath = "/uploads/tagged-asset2.jpg",
             MimeType = "image/jpeg",
             FileSize = 2048,
             AssetType = "Image",
@@ -263,7 +263,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "untagged-asset.jpg", 
             OriginalFileName = "untagged-asset.jpg",
-            FilePath = "/uploads/untagged-asset.jpg",
+            StoragePath = "/uploads/untagged-asset.jpg",
             MimeType = "image/jpeg",
             FileSize = 1536,
             AssetType = "Image",
@@ -290,7 +290,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "file1.jpg", 
             OriginalFileName = "file1.jpg",
-            FilePath = "/uploads/file1.jpg",
+            StoragePath = "/uploads/file1.jpg",
             MimeType = "image/jpeg",
             FileSize = 1024,
             AssetType = "Image",
@@ -301,7 +301,7 @@ public class CmsAssetServiceTests : IDisposable
         { 
             FileName = "file2.pdf", 
             OriginalFileName = "file2.pdf",
-            FilePath = "/uploads/file2.pdf",
+            StoragePath = "/uploads/file2.pdf",
             MimeType = "application/pdf",
             FileSize = 5120,
             AssetType = "Document",
