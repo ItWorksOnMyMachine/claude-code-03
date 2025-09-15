@@ -1,18 +1,20 @@
-import React, { useRef, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
   Button,
   TextField,
   Grid,
   Toolbar,
-  Alert
+  Alert,
+  Snackbar
 } from '@mui/material';
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { Link, useParams } from '@modern-js/runtime/router';
 import grapesjs from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
+import { CmsApiService } from '../services/CmsApiService';
 
 interface PlatformContext {
   authToken?: string;
@@ -22,11 +24,22 @@ interface PlatformContext {
 
 interface ContentEditorProps extends PlatformContext {}
 
-const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) => {
+const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, userId }) => {
   const { id } = useParams();
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInstance = useRef<any>(null);
   const isEditMode = Boolean(id);
+
+  // State management
+  const [title, setTitle] = useState('');
+  const [contentType, setContentType] = useState('page');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // API service
+  const apiService = useRef(new CmsApiService({ authToken, tenantId, userId }));
 
   useEffect(() => {
     if (editorRef.current && !editorInstance.current) {
@@ -81,8 +94,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) =>
 
       // Load content if in edit mode
       if (isEditMode && id) {
-        // This would typically load from an API
-        console.log(`Loading content for ID: ${id}`);
+        loadContent(id);
       }
     }
 
@@ -95,21 +107,101 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) =>
     };
   }, [id, isEditMode, tenantId, authToken]);
 
-  const handleSave = () => {
-    if (editorInstance.current) {
+  // Load content from API
+  const loadContent = useCallback(async (contentId: string) => {
+    try {
+      setIsLoading(true);
+      const content = await apiService.current.getContent(contentId);
+
+      if (content && editorInstance.current) {
+        setTitle(content.title);
+        setContentType(content.contentType);
+
+        // Load HTML/CSS into GrapesJS
+        editorInstance.current.setComponents(content.content);
+
+        setMessage({ text: 'Content loaded successfully', type: 'success' });
+      }
+    } catch (error) {
+      console.error('Failed to load content:', error);
+      setMessage({ text: 'Failed to load content', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Save content to API
+  const handleSave = useCallback(async () => {
+    if (!editorInstance.current || !title.trim()) {
+      setMessage({ text: 'Please enter a title', type: 'error' });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
       const html = editorInstance.current.getHtml();
       const css = editorInstance.current.getCss();
-      const data = {
-        html,
-        css,
-        tenantId,
-        ...(isEditMode && { id }),
+      const combinedContent = html + (css ? `<style>${css}</style>` : '');
+
+      const contentData = {
+        title,
+        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+        content: combinedContent,
+        contentType,
+        status: 'draft',
       };
-      
-      console.log('Saving content:', data);
-      // This would typically save to an API
+
+      if (isEditMode && id) {
+        await apiService.current.updateContent(id, contentData);
+        setMessage({ text: 'Content updated successfully', type: 'success' });
+      } else {
+        await apiService.current.createContent(contentData);
+        setMessage({ text: 'Content created successfully', type: 'success' });
+      }
+
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Failed to save content:', error);
+      setMessage({ text: 'Failed to save content', type: 'error' });
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }, [title, contentType, isEditMode, id]);
+
+  // Auto-save functionality with debouncing (subtask 6.7)
+  useEffect(() => {
+    if (!editorInstance.current || !title.trim()) return;
+
+    const autoSaveInterval = setInterval(async () => {
+      if (!isSaving && editorInstance.current) {
+        try {
+          setIsSaving(true);
+          const html = editorInstance.current.getHtml();
+          const css = editorInstance.current.getCss();
+          const combinedContent = html + (css ? `<style>${css}</style>` : '');
+
+          const contentData = {
+            title,
+            slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+            content: combinedContent,
+            contentType,
+            status: 'draft',
+          };
+
+          if (isEditMode && id) {
+            await apiService.current.updateContent(id, contentData);
+            setLastSaved(new Date());
+          }
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [title, contentType, isEditMode, id, isSaving]);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -123,15 +215,23 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) =>
           >
             Back to Content
           </Button>
-          <Typography variant="h5" component="h1" sx={{ flexGrow: 1 }}>
-            {isEditMode ? 'Edit Content' : 'Create New Content'}
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h5" component="h1">
+              {isEditMode ? 'Edit Content' : 'Create New Content'}
+            </Typography>
+            {lastSaved && (
+              <Typography variant="caption" color="textSecondary">
+                Last saved: {lastSaved.toLocaleTimeString()}
+              </Typography>
+            )}
+          </Box>
           <Button
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSave}
+            disabled={isSaving || isLoading}
           >
-            Save
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </Toolbar>
         
@@ -141,7 +241,9 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) =>
               fullWidth
               label="Content Title"
               variant="outlined"
-              defaultValue={isEditMode ? `Content ${id}` : ''}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={isLoading}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -153,7 +255,9 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) =>
               SelectProps={{
                 native: true,
               }}
-              defaultValue="page"
+              value={contentType}
+              onChange={(e) => setContentType(e.target.value)}
+              disabled={isLoading}
             >
               <option value="page">Page</option>
               <option value="template">Template</option>
@@ -170,15 +274,31 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken }) =>
       )}
 
       <Paper sx={{ flex: 1, overflow: 'hidden' }}>
-        <div 
-          ref={editorRef} 
-          style={{ 
-            height: '100%', 
+        <div
+          ref={editorRef}
+          style={{
+            height: '100%',
             width: '100%',
             minHeight: '500px'
-          }} 
+          }}
         />
       </Paper>
+
+      {/* Message snackbar */}
+      <Snackbar
+        open={Boolean(message)}
+        autoHideDuration={6000}
+        onClose={() => setMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setMessage(null)}
+          severity={message?.type || 'info'}
+          sx={{ width: '100%' }}
+        >
+          {message?.text}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

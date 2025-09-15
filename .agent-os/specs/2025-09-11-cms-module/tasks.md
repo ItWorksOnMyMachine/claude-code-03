@@ -52,15 +52,15 @@
   - [x] 5.7 Update cms-bff to use shared services
   - [x] 5.8 Verify all tests pass
 
-- [ ] 6. Integrate GrapesJS Visual Editor
-  - [ ] 6.1 Write tests for GrapesJS integration and content persistence
-  - [ ] 6.2 Install and configure GrapesJS with React wrapper
-  - [ ] 6.3 Create page editor component with GrapesJS instance
-  - [ ] 6.4 Implement content loading and saving to CMS API
-  - [ ] 6.5 Add basic block library (text, image, button, container)
-  - [ ] 6.6 Configure asset manager for media uploads
-  - [ ] 6.7 Implement auto-save functionality with debouncing
-  - [ ] 6.8 Verify all tests pass
+- [x] 6. Integrate GrapesJS Visual Editor
+  - [x] 6.1 Write tests for GrapesJS integration and content persistence
+  - [x] 6.2 Install and configure GrapesJS with React wrapper
+  - [x] 6.3 Create page editor component with GrapesJS instance
+  - [x] 6.4 Implement content loading and saving to CMS API
+  - [x] 6.5 Add basic block library (text, image, button, container)
+  - [x] 6.6 Configure asset manager for media uploads
+  - [x] 6.7 Implement auto-save functionality with debouncing
+  - [x] 6.8 Verify all tests pass
 
 - [ ] 7. Implement Entitlement-Based Access Control
   - [ ] 7.1 Write tests for entitlement checking and role-based access
