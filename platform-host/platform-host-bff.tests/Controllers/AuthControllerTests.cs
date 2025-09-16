@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using PlatformBff.Controllers;
 using PlatformBff.Models;
-using PlatformBff.Services;
+using PlatformShared.Services;
+using SharedModels = PlatformShared.Models;
 using PlatformBff.Tests.Helpers;
 using System;
 using System.Collections.Generic;
@@ -189,7 +190,7 @@ public class AuthControllerTests
     //     var result = await _controller.Callback();
 
     //     // Assert
-    //     _sessionServiceMock.Verify(x => x.StoreTokensAsync(It.IsAny<string>(), It.IsAny<TokenData>()), Times.Once);
+    //     _sessionServiceMock.Verify(x => x.StoreTokensAsync(It.IsAny<string>(), It.IsAny<SharedModels.TokenData>()), Times.Once);
     //     _sessionServiceMock.Verify(x => x.StoreSessionDataAsync(It.IsAny<string>(), It.IsAny<SessionData>()), Times.Once);
 
     //     var redirectResult = Assert.IsType<RedirectResult>(result);
@@ -211,7 +212,7 @@ public class AuthControllerTests
         var principal = new ClaimsPrincipal(identity);
         _httpContext.User = principal;
 
-        var existingTokens = new TokenData
+        var existingTokens = new SharedModels.TokenData
         {
             AccessToken = "old_access_token",
             RefreshToken = "refresh_token",

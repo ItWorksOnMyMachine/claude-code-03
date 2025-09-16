@@ -13,6 +13,8 @@ using PlatformBff.Middleware;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Claims;
 using FastEndpoints;
+using PlatformShared.Extensions;
+using PlatformShared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,53 +50,30 @@ if (builder.Environment.EnvironmentName != "Testing")
     });
 }
 
-// Add Tenant Context
-builder.Services.AddScoped<ITenantContext, TenantContext>();
+// Note: ITenantContext now provided by PlatformSharedServices
 
 // Add Repositories
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<ITenantUserRepository, TenantUserRepository>();
 
-// Add Redis for distributed caching (skip in Testing environment)
+// Add shared platform services (Redis, Data Protection, Session, Tenant Context, Entitlements)
 if (builder.Environment.EnvironmentName != "Testing")
 {
-    var redisConnection = builder.Configuration.GetConnectionString("Redis");
-    if (!string.IsNullOrEmpty(redisConnection))
-    {
-        builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-            ConnectionMultiplexer.Connect(redisConnection));
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.Configuration = redisConnection;
-            options.InstanceName = "PlatformBff";
-        });
-
-        // Configure Data Protection with Redis for distributed key storage
-        var redis = ConnectionMultiplexer.Connect(redisConnection);
-        builder.Services.AddDataProtection()
-            .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys")
-            .SetApplicationName("PlatformBff")
-            .SetDefaultKeyLifetime(TimeSpan.FromDays(90)); // Ensure keys persist long enough
-    }
-    else
-    {
-        // Fallback to in-memory cache if Redis is not configured
-        builder.Services.AddDistributedMemoryCache();
-        builder.Services.AddDataProtection()
-            .SetApplicationName("PlatformBff");
-    }
+    builder.Services.AddPlatformSharedServices(builder.Configuration);
 }
 else
 {
-    // Use in-memory cache for testing
+    // Use in-memory services for testing
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddDataProtection()
         .SetApplicationName("PlatformBff");
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddHttpClient();
+    builder.Services.AddScoped<PlatformShared.Services.ITenantContext, PlatformShared.Services.TenantContext>();
+    builder.Services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
+    builder.Services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 }
-
-// Add Session Service for token management
-builder.Services.AddScoped<ISessionService, DistributedSessionService>();
 
 // Add Tenant Services
 builder.Services.AddScoped<ITenantService, TenantService>();

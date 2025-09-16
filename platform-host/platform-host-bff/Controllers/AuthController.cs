@@ -5,7 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using PlatformBff.Models;
-using PlatformBff.Services;
+using PlatformShared.Services;
+using SharedModels = PlatformShared.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -159,7 +160,7 @@ public class AuthController : ControllerBase
             }
 
             // Store tokens
-            var tokenData = new TokenData
+            var tokenData = new SharedModels.TokenData
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
@@ -174,7 +175,7 @@ public class AuthController : ControllerBase
                         principal.FindFirst("sub")?.Value ??
                         Guid.NewGuid().ToString();
 
-            await _sessionService.StoreSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId), userId);
+            await _sessionService.StoreSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId), userId);
 
             _logger.LogInformation("User {UserId} authenticated successfully", userId);
 

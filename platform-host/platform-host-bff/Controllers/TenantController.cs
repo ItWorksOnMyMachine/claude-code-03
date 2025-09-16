@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlatformBff.Models;
 using PlatformBff.Models.Tenant;
-using PlatformBff.Services;
+using PlatformShared.Services;
 using PlatformBff.Services.Tenant;
 
 namespace PlatformBff.Controllers;
@@ -42,7 +42,7 @@ public class TenantController : ControllerBase
             });
         }
 
-        var selectedTenantIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        var selectedTenantIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.SelectedTenantId));
         if (selectedTenantIdResult.IsMissing)
         {
             return Unauthorized(new ErrorResponse
@@ -63,12 +63,12 @@ public class TenantController : ControllerBase
         }
 
         // Get tenant details
-        var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
 
         var tenant = await _tenantService.GetTenantAsync(userIdResult.Value, selectedTenantId);
         if (tenant == null)
         {
-            await _sessionService.RemoveSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            await _sessionService.RemoveSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
 
             return Ok(new CurrentTenantResponse
             {
@@ -107,7 +107,7 @@ public class TenantController : ControllerBase
             });
         }
 
-        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
         if (UserIdResult.IsMissing)
         {
             return Unauthorized(new ErrorResponse
@@ -118,7 +118,7 @@ public class TenantController : ControllerBase
         }
 
         var tenants = await _tenantService.GetAvailableTenantsAsync(UserIdResult.Value);
-        var selectedTenantIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        var selectedTenantIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.SelectedTenantId));
 
         return Ok(new AvailableTenantsResponse
         {
@@ -145,7 +145,7 @@ public class TenantController : ControllerBase
             });
         }
 
-        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
         if (UserIdResult.IsMissing)
         {
             return Unauthorized(new ErrorResponse
@@ -159,7 +159,7 @@ public class TenantController : ControllerBase
         {
             // Select the tenant and get context
             var context = await _tenantService.SelectTenantAsync(UserIdResult.Value, request.TenantId);
-            await _sessionService.StoreSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId), context.TenantId.ToString());
+            await _sessionService.StoreSessionDataAsync(sessionId, nameof(PlatformSessionKeys.SelectedTenantId), context.TenantId.ToString());
 
             _logger.LogInformation("User {UserId} selected tenant {TenantId} ({TenantName})",
                 UserIdResult.Value, context.TenantId, context.TenantName);
@@ -218,7 +218,7 @@ public class TenantController : ControllerBase
             });
         }
 
-        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        var UserIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
         if (UserIdResult.IsMissing)
         {
             return Unauthorized(new ErrorResponse
@@ -229,7 +229,7 @@ public class TenantController : ControllerBase
         }
 
         // Clear tenant selection from session
-        await _sessionService.RemoveSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+        await _sessionService.RemoveSessionDataAsync(sessionId, nameof(PlatformSessionKeys.SelectedTenantId));
 
         _logger.LogInformation("User {UserId} cleared tenant selection", UserIdResult.Value);
 

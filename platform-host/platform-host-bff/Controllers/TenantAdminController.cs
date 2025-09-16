@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlatformBff.Authorization;
 using PlatformBff.Models;
 using PlatformBff.Models.Tenant;
-using PlatformBff.Services;
+using PlatformShared.Services;
 using PlatformBff.Services.Tenant;
 
 namespace PlatformBff.Controllers;
@@ -82,7 +82,7 @@ public class TenantAdminController : ControllerBase
 
             // Log admin action
             var sessionId = User.FindFirst("session_id")?.Value;
-            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} created tenant {TenantId} ({TenantName})",
                 userIdResult.Value, tenant.Id, tenant.Name);
 
@@ -159,7 +159,7 @@ public class TenantAdminController : ControllerBase
 
             // Log admin action
             var sessionId = User.FindFirst("session_id")?.Value;
-            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} updated tenant {TenantId}",
                 userIdResult.Value, id);
 
@@ -197,7 +197,7 @@ public class TenantAdminController : ControllerBase
 
             // Log admin action
             var sessionId = User.FindFirst("session_id")?.Value;
-            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} deactivated tenant {TenantId}",
                 userIdResult.Value, id);
 
@@ -243,7 +243,7 @@ public class TenantAdminController : ControllerBase
 
             // Log admin action
             var sessionId = User.FindFirst("session_id")?.Value;
-            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            var userIdResult = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformSessionKeys.UserId));
             _logger.LogWarning("Platform admin {AdminUserId} added user {UserId} to tenant {TenantId}",
                 userIdResult.Value, userId, id);
 

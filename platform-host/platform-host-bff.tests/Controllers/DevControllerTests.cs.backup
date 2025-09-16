@@ -12,7 +12,6 @@ using Microsoft.EntityFrameworkCore;
 using PlatformBff.Data;
 using StackExchange.Redis;
 using Moq;
-using PlatformShared.Services;
 
 namespace PlatformBff.Tests.Controllers;
 
@@ -62,24 +61,6 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
                     .ReturnsAsync(TimeSpan.FromMilliseconds(1));
                 
                 services.AddSingleton(mockRedis.Object);
-                
-
-                // Add required services for middleware
-                services.AddDistributedMemoryCache();
-                services.AddHttpContextAccessor();
-                services.AddHttpClient();
-
-                // Register shared services interfaces
-                services.AddScoped<PlatformShared.Services.ITenantContext, PlatformShared.Services.TenantContext>();
-                services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
-                services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
-
-                // Register BFF-specific session service for TokenRefreshMiddleware
-n                // Register BFF-specific tenant context for TenantContextMiddleware
-                var mockTenantContext = new Mock<PlatformBff.Services.ITenantContext>();
-                services.AddScoped<PlatformBff.Services.ITenantContext>(_ => mockTenantContext.Object);
-                var mockSessionService = new Mock<PlatformBff.Services.ISessionService>();
-                services.AddScoped<PlatformBff.Services.ISessionService>(_ => mockSessionService.Object);
                 
                 // Override IHostEnvironment to simulate Development or Production
                 services.AddSingleton<IHostEnvironment>(new TestHostEnvironment 
