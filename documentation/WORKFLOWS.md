@@ -35,6 +35,14 @@ dotnet watch run
 # Terminal 2 - Frontend
 cd platform-host\platform-host-frontend
 npm run dev
+
+# Terminal 3 - CMS Module Frontend (Optional)
+cd modules\cms-module\cms-frontend
+npm run dev
+
+# Terminal 4 - CMS Module BFF (Optional)
+cd modules\cms-module\cms-bff
+dotnet watch run
 ```
 
 ### End of Day
@@ -447,6 +455,107 @@ public async Task<List<Feature>> GetFeaturesForTenant(Guid tenantId)
 # Login as user2, verify data is not visible
 ```
 
+## CMS Module Development Workflows
+
+### CMS Content Management
+
+#### Creating New Content
+```bash
+# 1. Access CMS module at /cms route in platform
+# 2. Click "Create New Content" (requires CMS_MANAGE entitlement)
+# 3. Use GrapesJS visual editor for content creation
+# 4. Content auto-saves every 30 seconds
+# 5. Manual save with validation and success feedback
+```
+
+#### Managing Templates
+```bash
+# 1. Access template management through CMS module
+# 2. Create new templates with JSON layout definitions
+# 3. Templates support zones and block configurations
+# 4. Template usage tracking prevents deletion of templates in use
+```
+
+#### Asset Management
+```bash
+# 1. Access asset manager (requires CMS_ASSETS entitlement)
+# 2. Upload files with drag-and-drop interface
+# 3. Assets automatically tagged and metadata extracted
+# 4. Tenant-isolated storage with content hashing
+```
+
+### CMS Development Workflows
+
+#### Adding New CMS API Endpoints
+```csharp
+// 1. Create endpoint in modules/cms-module/cms-bff/Endpoints/
+[HttpPost("/api/cms/my-feature"), Authorize, RequireCmsManage]
+public class MyCmsFeatureEndpoint : Endpoint<MyCmsRequest, MyCmsResponse>
+{
+    private readonly ITenantContext _tenantContext;
+    private readonly IEntitlementService _entitlementService;
+
+    // Implementation with tenant and entitlement checking
+}
+
+// 2. Add entitlement validation
+// 3. Create comprehensive tests
+// 4. Update API documentation
+```
+
+#### Adding New CMS React Components
+```typescript
+// 1. Create component in modules/cms-module/cms-frontend/src/components/
+import { useEntitlements, CmsEntitlements } from '../hooks/useEntitlements';
+
+export const MyCmsComponent: React.FC = () => {
+  const { hasEntitlement } = useEntitlements();
+
+  if (!hasEntitlement(CmsEntitlements.CMS_ACCESS)) {
+    return <AccessDeniedMessage />;
+  }
+
+  // Component implementation with entitlement-based UI
+};
+
+// 2. Add to CmsRouter for routing
+// 3. Create comprehensive tests with entitlement mocking
+// 4. Ensure Material-UI theme consistency
+```
+
+#### CMS Module Testing
+```bash
+# Run CMS backend tests
+cd modules/cms-module/cms-bff.tests
+dotnet test
+
+# Run CMS frontend tests
+cd modules/cms-module/cms-frontend
+npm test
+
+# Run integration tests
+cd modules/cms-module/cms-bff.tests
+dotnet test --filter "Integration"
+
+# Run specific test categories
+dotnet test --filter "Category=Entitlements"
+dotnet test --filter "Category=Database"
+```
+
+#### CMS Module Build and Deployment
+```bash
+# Build CMS frontend for production
+cd modules/cms-module/cms-frontend
+npm run build
+
+# Build CMS backend for production
+cd modules/cms-module/cms-bff
+dotnet publish -c Release
+
+# Verify module federation configuration
+npm run build:analyze
+```
+
 ## Module Federation Workflows
 
 ### Adding a New Remote Module
@@ -503,9 +612,16 @@ export default defineConfig({
 
 ```typescript
 // platform-host-frontend/src/components/RemoteLoader.tsx
-const RemoteFeature = React.lazy(() => 
+const RemoteFeature = React.lazy(() =>
   import('remoteFeature/Feature').catch(() => ({
     default: () => <div>Remote module failed to load</div>
+  }))
+);
+
+// Example: CMS Module Loading (already implemented)
+const CmsModule = React.lazy(() =>
+  import('cmsModule/CmsApp').catch(() => ({
+    default: () => <div>CMS module failed to load</div>
   }))
 );
 
@@ -513,6 +629,14 @@ export const FeatureContainer = () => (
   <ErrorBoundary>
     <Suspense fallback={<CircularProgress />}>
       <RemoteFeature />
+    </Suspense>
+  </ErrorBoundary>
+);
+
+export const CmsContainer = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<CircularProgress />}>
+      <CmsModule authToken={authToken} tenantId={tenantId} userId={userId} />
     </Suspense>
   </ErrorBoundary>
 );

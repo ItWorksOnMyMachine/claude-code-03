@@ -594,3 +594,253 @@ If issues persist:
    - Include error messages
    - Provide diagnostic output
    - Describe steps to reproduce
+
+## CMS Module Issues
+
+### CMS Module Not Loading
+
+**Error:**
+```
+CMS module failed to load or shows error boundary
+```
+
+**Solutions:**
+1. **Check Module Federation Configuration**:
+   ```bash
+   # Verify CMS module is running
+   curl https://cms.platform.local:3003/health
+
+   # Check remote entry is accessible
+   curl https://cms.platform.local:3003/remoteEntry.js
+   ```
+
+2. **Verify Entitlements**:
+   ```bash
+   # Check if user has CMS_ACCESS entitlement
+   curl -X GET "https://host-bff.platform.local:5086/api/entitlements" \
+     -H "Cookie: platform.auth=<session-cookie>"
+
+   # Should include "CMS_ACCESS" in entitlements array
+   ```
+
+3. **Check CORS Configuration**:
+   ```bash
+   # Verify CORS headers allow platform host access
+   curl -H "Origin: https://host-fe.platform.local:3002" \
+     -H "Access-Control-Request-Method: GET" \
+     -X OPTIONS https://cms.platform.local:3003/remoteEntry.js
+   ```
+
+### GrapesJS Editor Not Initializing
+
+**Error:**
+```
+Editor container is empty or shows error
+```
+
+**Solutions:**
+1. **Check GrapesJS Dependencies**:
+   ```bash
+   cd modules/cms-module/cms-frontend
+   npm list grapesjs grapesjs-react
+
+   # Reinstall if needed
+   npm install grapesjs@^0.21.10 grapesjs-react@^3.0.2
+   ```
+
+2. **Verify Editor Container**:
+   ```typescript
+   // Check if editor ref is properly attached
+   useEffect(() => {
+     if (editorRef.current && !editorInstance.current) {
+       console.log('Editor container:', editorRef.current);
+       // GrapesJS initialization code
+     }
+   }, []);
+   ```
+
+3. **CSS Loading Issues**:
+   ```typescript
+   // Ensure GrapesJS CSS is properly imported
+   import 'grapesjs/dist/css/grapes.min.css';
+
+   // Check browser developer tools for CSS loading errors
+   ```
+
+### CMS API Authentication Errors
+
+**Error:**
+```
+401 Unauthorized or 403 Forbidden on CMS endpoints
+```
+
+**Solutions:**
+1. **Check Session Cookie**:
+   ```bash
+   # Verify platform.auth cookie is present and valid
+   # Check browser developer tools -> Application -> Cookies
+   ```
+
+2. **Verify Tenant Context**:
+   ```bash
+   # Check if tenant is selected
+   curl -X GET "https://host-bff.platform.local:5086/api/tenant/current" \
+     -H "Cookie: platform.auth=<session-cookie>"
+   ```
+
+3. **Check Entitlement Service**:
+   ```bash
+   # Test entitlement endpoint directly
+   curl -X POST "https://host-bff.platform.local:5086/api/entitlements/check" \
+     -H "Content-Type: application/json" \
+     -H "Cookie: platform.auth=<session-cookie>" \
+     -d '{"entitlement":"CMS_ACCESS"}'
+   ```
+
+### Asset Upload Failures
+
+**Error:**
+```
+Asset upload fails or returns error
+```
+
+**Solutions:**
+1. **Check File Size Limits**:
+   ```bash
+   # Verify file is within size limits (typically 10MB)
+   # Check Content-Length header doesn't exceed server limits
+   ```
+
+2. **Verify MIME Type Support**:
+   ```typescript
+   // Check if file type is supported
+   const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+   if (!supportedTypes.includes(file.type)) {
+     throw new Error('Unsupported file type');
+   }
+   ```
+
+3. **Storage Path Issues**:
+   ```bash
+   # Ensure upload directory exists and is writable
+   # Check disk space availability
+   ```
+
+### Database Migration Issues
+
+**Error:**
+```
+CMS tables not found or migration errors
+```
+
+**Solutions:**
+1. **Run CMS Migrations**:
+   ```bash
+   cd modules/cms-module/cms-bff
+   dotnet ef database update
+
+   # Or create migration if needed
+   dotnet ef migrations add "CmsModuleSetup"
+   ```
+
+2. **Check Database Connection**:
+   ```bash
+   # Test CMS BFF database connection
+   cd modules/cms-module/cms-bff
+   dotnet ef database update --verbose
+   ```
+
+3. **Verify Entity Framework Configuration**:
+   ```csharp
+   // Check CmsDbContext is properly configured
+   // Verify connection string in appsettings.json
+   ```
+
+### Module Federation Development Issues
+
+**Error:**
+```
+Shared dependencies conflicts or version mismatches
+```
+
+**Solutions:**
+1. **Check Shared Dependencies**:
+   ```javascript
+   // modules/cms-module/cms-frontend/module-federation.config.ts
+   shared: {
+     react: { singleton: true, eager: true },
+     'react-dom': { singleton: true, eager: true },
+     '@mui/material': { singleton: true, eager: true },
+     // Ensure versions match between host and remote
+   }
+   ```
+
+2. **Verify Module Isolation**:
+   ```javascript
+   // CMS-specific dependencies should NOT be shared
+   shared: {
+     'grapesjs': false,
+     'grapesjs-react': false,
+     'dompurify': false,
+   }
+   ```
+
+3. **Clear Module Cache**:
+   ```bash
+   # Clear webpack cache
+   rm -rf node_modules/.cache
+   rm -rf dist
+   npm run build
+   ```
+
+### Entitlement-Related Issues
+
+**Error:**
+```
+"You don't have permission to access the CMS module" or missing UI elements
+```
+
+**Solutions:**
+1. **Check User Entitlements**:
+   ```bash
+   # Verify user has required entitlements
+   curl -X GET "https://host-bff.platform.local:5086/api/entitlements"
+
+   # Should include: ["CMS_ACCESS", "CMS_MANAGE", "CMS_ASSETS"]
+   ```
+
+2. **Refresh Entitlement Cache**:
+   ```typescript
+   // In React component
+   const { refresh } = useEntitlements();
+   await refresh(); // Clears cache and reloads entitlements
+   ```
+
+3. **Check Platform vs Regular Tenant**:
+   ```bash
+   # Platform admin users get different entitlements
+   # Regular tenant users have limited CMS access
+   # Verify correct tenant is selected
+   ```
+
+## CMS Module Health Checks
+
+### Verifying CMS Module Health
+
+```bash
+# Backend health check
+curl https://cms.platform.local:5001/health
+
+# Frontend health check
+curl https://cms.platform.local:3003/health
+
+# Expected response:
+{
+  "status": "healthy",
+  "service": "CMS BFF",
+  "dependencies": {
+    "database": "healthy",
+    "cms_content_table": "accessible (X records)"
+  }
+}
+```

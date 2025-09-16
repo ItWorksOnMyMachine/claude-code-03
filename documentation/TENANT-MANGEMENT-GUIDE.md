@@ -305,6 +305,8 @@ Verify:
 - **Global Query Filters**: Entity Framework applies tenant filters at ORM level
 - **Repository Pattern**: BaseRepository enforces tenant context
 - **No Cross-Tenant Queries**: Except for platform admins with explicit bypass
+- **Module Data Isolation**: CMS content, assets, and templates are tenant-scoped
+- **Shared Services**: Session and entitlement services maintain tenant context across all modules
 
 ### Authentication & Authorization
 
@@ -347,6 +349,45 @@ The platform tenant (ID: `00000000-0000-0000-0000-000000000001`):
 - `POST /api/admin/tenant/{id}/deactivate` - Deactivate tenant
 - `POST /api/admin/tenant/{id}/users` - Add user to tenant
 - `POST /api/admin/tenant/{id}/impersonate` - Start impersonation
+
+### Entitlement Endpoints
+- `GET /api/entitlements` - Get current user entitlements and accessible modules
+- `POST /api/entitlements/check` - Check specific entitlement
+
+## CMS Module Tenant Integration
+
+### CMS Entitlements by Tenant Type
+
+#### Platform Tenant Users
+Platform administrators have full CMS access:
+- `CMS_ACCESS` - Access to CMS module
+- `CMS_MANAGE` - Create, edit, delete content
+- `CMS_ASSETS` - Upload and manage assets
+- `CMS_TEMPLATES` - Create and modify templates
+- `CMS_PUBLISH` - Publish content to live sites
+
+#### Regular Tenant Users
+Standard tenant users have limited CMS access:
+- `CMS_ACCESS` - Access to CMS module
+- `CMS_MANAGE` - Create and edit content
+- `CMS_ASSETS` - Upload and manage assets
+
+### CMS Data Isolation
+
+#### Content Isolation
+- All CMS content (pages, templates, assets) is automatically filtered by tenant
+- Users can only see and edit content within their selected tenant
+- Content blocks and page hierarchies respect tenant boundaries
+
+#### Asset Storage
+- Assets are stored with tenant-specific paths
+- Content hashing prevents duplicate uploads within tenants
+- File access URLs include tenant verification
+
+#### Template Sharing
+- Templates are tenant-specific by default
+- Platform administrators can create "global" templates (future feature)
+- Template usage tracking prevents accidental deletion
 - `POST /api/admin/tenant/stop-impersonation` - Stop impersonation
 
 ## Support

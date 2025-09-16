@@ -250,14 +250,26 @@ dotnet watch run
 # 4. Terminal 3 - Run Frontend
 cd platform-host\platform-host-frontend
 npm run dev
+
+# 5. Terminal 4 - Run CMS Module Frontend (Optional)
+cd modules\cms-module\cms-frontend
+npm run dev
+
+# 6. Terminal 5 - Run CMS Module BFF (Optional)
+cd modules\cms-module\cms-bff
+dotnet watch run
 ```
 
 ### Service URLs
 
-- Frontend: https://host-fe.platform.local:3002
-- BFF API: https://host-bff.platform.local:5086
-- Auth Service: https://login.platform.local:5214
-- API Documentation: http://host-bff.platform.local:5086/swagger
+- **Platform Host Frontend**: https://host-fe.platform.local:3002
+- **Platform Host BFF API**: https://host-bff.platform.local:5086
+- **CMS Module Frontend**: https://cms.platform.local:3003
+- **CMS Module BFF API**: https://cms.platform.local:5001
+- **Auth Service**: https://login.platform.local:5214
+- **API Documentation**:
+  - Platform BFF: http://host-bff.platform.local:5086/swagger
+  - CMS BFF: http://cms.platform.local:5001/swagger
 
 ## IDE Configuration
 
@@ -350,16 +362,28 @@ curl https://login.platform.local:5086/.well-known/openid-configuration
 ### 5. Run Tests
 
 ```bash
-# All tests
+# All platform tests
 npm test
 
-# Backend tests
+# Platform backend tests
 cd platform-host/platform-host-bff
 dotnet test
 
-# Frontend tests
+# Platform frontend tests
 cd platform-host/platform-host-frontend
 npm test
+
+# CMS module backend tests
+cd modules/cms-module/cms-bff.tests
+dotnet test
+
+# CMS module frontend tests
+cd modules/cms-module/cms-frontend
+npm test
+
+# Auth service tests
+cd auth-service/AuthService.Tests
+dotnet test
 ```
 
 ## Troubleshooting Setup Issues
