@@ -27,15 +27,23 @@ namespace CmsBff.Tests.Integration;
 /// Comprehensive integration tests for the complete CMS workflow
 /// Tests the full stack from API endpoints through services to database
 /// </summary>
-[Collection("CmsIntegrationTests")]
 public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
-    private readonly HttpClient _client;
+    private static int _testCounter = 0;
 
     public CmsWorkflowIntegrationTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
+        _factory = factory;
+    }
+
+    private WebApplicationFactory<Program> CreateFactory()
+    {
+        // Use unique database name per factory instance (same pattern as platform-host-bff)
+        var testId = Interlocked.Increment(ref _testCounter);
+        var dbName = $"CmsTestDb_{testId}";
+
+        return _factory.WithWebHostBuilder(builder =>
         {
             // Use Testing environment to avoid Redis connection issues
             builder.UseEnvironment("Testing");
@@ -55,32 +63,43 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
 
             builder.ConfigureServices(services =>
             {
+                // Replace database with unique in-memory database for this test
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<CmsDbContext>));
+                if (descriptor != null)
+                {
+                    services.Remove(descriptor);
+                }
+                services.AddDbContext<CmsDbContext>(options =>
+                {
+                    options.UseInMemoryDatabase(dbName);
+                });
+
                 // Override services for testing
                 var entitlementDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(PlatformShared.Services.IEntitlementService));
                 if (entitlementDescriptor != null)
                 {
                     services.Remove(entitlementDescriptor);
                 }
-                services.AddTransient<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
+                services.AddScoped<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
 
                 var sessionDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(PlatformShared.Services.ISessionService));
                 if (sessionDescriptor != null)
                 {
                     services.Remove(sessionDescriptor);
                 }
-                services.AddTransient<PlatformShared.Services.ISessionService, TestSessionService>();
-
-                // Don't override authentication - let Program.cs handle it completely
+                services.AddScoped<PlatformShared.Services.ISessionService, TestSessionService>();
             });
         });
-
-        _client = _factory.CreateClient();
     }
 
     [Fact]
     public async Task CompleteContentWorkflow_Should_CreateUpdateDeleteContent()
     {
-        // Arrange - Create content
+        // Arrange
+        var factory = CreateFactory();
+        var client = factory.CreateClient();
+
+        // Create content
         var createContent = new
         {
             title = "Integration Test Content",
@@ -96,7 +115,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
         // Act 1 - Create content
-        var createResponse = await _client.PostAsync("/api/cms/content", createPayload);
+        var createResponse = await client.PostAsync("/api/cms/content", createPayload);
 
         // Assert 1 - Content created successfully
         createResponse.Should().BeSuccessful();
@@ -108,7 +127,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         createdContent.GetProperty("title").GetString().Should().Be("Integration Test Content");
 
         // Act 2 - Get content by ID
-        var getResponse = await _client.GetAsync($"/api/cms/content/{contentId}");
+        var getResponse = await client.GetAsync($"/api/cms/content/{contentId}");
 
         // Assert 2 - Content retrieved successfully
         getResponse.Should().BeSuccessful();
@@ -133,7 +152,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var updateJson = JsonSerializer.Serialize(updateContent);
         var updatePayload = new StringContent(updateJson, Encoding.UTF8, "application/json");
 
-        var updateResponse = await _client.PutAsync($"/api/cms/content/{contentId}", updatePayload);
+        var updateResponse = await client.PutAsync($"/api/cms/content/{contentId}", updatePayload);
 
         // Assert 3 - Content updated successfully
         updateResponse.Should().BeSuccessful();
@@ -144,7 +163,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         updatedContent.GetProperty("status").GetString().Should().Be("published");
 
         // Act 4 - Get all content (should include our content)
-        var getAllResponse = await _client.GetAsync("/api/cms/content");
+        var getAllResponse = await client.GetAsync("/api/cms/content");
 
         // Assert 4 - Content appears in list
         getAllResponse.Should().BeSuccessful();
@@ -155,13 +174,13 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         allContent.GetArrayLength().Should().BeGreaterThan(0);
 
         // Act 5 - Delete content
-        var deleteResponse = await _client.DeleteAsync($"/api/cms/content/{contentId}");
+        var deleteResponse = await client.DeleteAsync($"/api/cms/content/{contentId}");
 
         // Assert 5 - Content deleted successfully
         deleteResponse.Should().BeSuccessful();
 
         // Act 6 - Verify content is deleted (should return 404)
-        var getDeletedResponse = await _client.GetAsync($"/api/cms/content/{contentId}");
+        var getDeletedResponse = await client.GetAsync($"/api/cms/content/{contentId}");
 
         // Assert 6 - Content no longer accessible
         getDeletedResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
@@ -170,7 +189,11 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
     [Fact]
     public async Task CompleteTemplateWorkflow_Should_CreateUseDeleteTemplate()
     {
-        // Arrange - Create template
+        // Arrange
+        var factory = CreateFactory();
+        var client = factory.CreateClient();
+
+        // Create template
         var createTemplate = new
         {
             name = "Integration Test Template",
@@ -192,7 +215,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
         // Act 1 - Create template
-        var createResponse = await _client.PostAsync("/api/cms/templates", createPayload);
+        var createResponse = await client.PostAsync("/api/cms/templates", createPayload);
 
         // Assert 1 - Template created successfully
         createResponse.Should().BeSuccessful();
@@ -204,7 +227,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         createdTemplate.GetProperty("name").GetString().Should().Be("Integration Test Template");
 
         // Act 2 - Get all templates (should include our template)
-        var getAllResponse = await _client.GetAsync("/api/cms/templates");
+        var getAllResponse = await client.GetAsync("/api/cms/templates");
 
         // Assert 2 - Template appears in list
         getAllResponse.Should().BeSuccessful();
@@ -228,13 +251,13 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var contentJson = JsonSerializer.Serialize(createContent);
         var contentPayload = new StringContent(contentJson, Encoding.UTF8, "application/json");
 
-        var createContentResponse = await _client.PostAsync("/api/cms/content", contentPayload);
+        var createContentResponse = await client.PostAsync("/api/cms/content", contentPayload);
 
         // Assert 3 - Content with template created successfully
         createContentResponse.Should().BeSuccessful();
 
         // Act 4 - Try to delete template (should fail because it's in use)
-        var deleteTemplateResponse = await _client.DeleteAsync($"/api/cms/templates/{templateId}");
+        var deleteTemplateResponse = await client.DeleteAsync($"/api/cms/templates/{templateId}");
 
         // Assert 4 - Template deletion should fail
         deleteTemplateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
@@ -243,10 +266,14 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
     [Fact]
     public async Task CompleteAssetWorkflow_Should_UploadManageDeleteAsset()
     {
+        // Arrange
+        var factory = CreateFactory();
+        var client = factory.CreateClient();
+
         // Note: This test demonstrates the asset workflow structure
         // In a real implementation, file upload would require multipart/form-data
 
-        // Arrange - Prepare asset data
+        // Prepare asset data
         var createAsset = new
         {
             fileName = "test-image.jpg",
@@ -267,7 +294,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
         // Act 1 - Create asset (simulated upload)
-        var createResponse = await _client.PostAsync("/api/cms/assets", createPayload);
+        var createResponse = await client.PostAsync("/api/cms/assets", createPayload);
 
         // Assert 1 - Asset created successfully
         createResponse.Should().BeSuccessful();
@@ -279,7 +306,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         createdAsset.GetProperty("fileName").GetString().Should().Be("test-image.jpg");
 
         // Act 2 - Get all assets
-        var getAllResponse = await _client.GetAsync("/api/cms/assets");
+        var getAllResponse = await client.GetAsync("/api/cms/assets");
 
         // Assert 2 - Asset appears in list
         getAllResponse.Should().BeSuccessful();
@@ -293,11 +320,15 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
     [Fact]
     public async Task EntitlementProtectedEndpoints_Should_RequireProperAuthorization()
     {
+        // Arrange
+        var factory = CreateFactory();
+        var client = factory.CreateClient();
+
         // This test verifies that our entitlement system is working
         // In a real scenario, these would return 403 without proper entitlements
 
         // Act 1 - Try to access content without entitlements
-        var getContentResponse = await _client.GetAsync("/api/cms/content");
+        var getContentResponse = await client.GetAsync("/api/cms/content");
 
         // Assert 1 - Should succeed because MockEntitlementService allows all
         getContentResponse.Should().BeSuccessful();
@@ -315,7 +346,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createJson = JsonSerializer.Serialize(createContent);
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
-        var createResponse = await _client.PostAsync("/api/cms/content", createPayload);
+        var createResponse = await client.PostAsync("/api/cms/content", createPayload);
 
         // Assert 2 - Should succeed because MockEntitlementService allows all
         createResponse.Should().BeSuccessful();
@@ -327,8 +358,12 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
     [Fact]
     public async Task HealthCheckEndpoint_Should_ReturnHealthStatus()
     {
+        // Arrange
+        var factory = CreateFactory();
+        var client = factory.CreateClient();
+
         // Act
-        var healthResponse = await _client.GetAsync("/health");
+        var healthResponse = await client.GetAsync("/health");
 
         // Assert
         healthResponse.Should().BeSuccessful();
