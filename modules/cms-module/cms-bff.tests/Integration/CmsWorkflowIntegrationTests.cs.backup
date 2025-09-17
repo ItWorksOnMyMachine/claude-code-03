@@ -74,6 +74,27 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
                 services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
                 services.AddScoped<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
 
+                // Configure static OIDC configuration to avoid network calls (same as platform-bff tests)
+                services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+                {
+                    // Create a static OIDC configuration
+                    var config = new OpenIdConnectConfiguration
+                    {
+                        Issuer = "https://test-idp.local",
+                        AuthorizationEndpoint = "https://test-idp.local/connect/authorize",
+                        TokenEndpoint = "https://test-idp.local/connect/token",
+                        UserInfoEndpoint = "https://test-idp.local/connect/userinfo",
+                        JwksUri = "https://test-idp.local/.well-known/jwks",
+                        EndSessionEndpoint = "https://test-idp.local/connect/endsession"
+                    };
+
+                    // Add a test signing key
+                    config.SigningKeys.Add(new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                        System.Text.Encoding.UTF8.GetBytes("test-key-for-integration-tests-only")));
+
+                    options.Configuration = config;
+                    options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(config);
+                });
             });
         });
 
