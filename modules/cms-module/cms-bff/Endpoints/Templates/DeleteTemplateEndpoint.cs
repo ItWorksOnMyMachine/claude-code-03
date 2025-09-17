@@ -32,10 +32,20 @@ public class DeleteTemplateEndpoint : Endpoint<DeleteTemplateRequest>
             return;
         }
 
+        // First check if template exists
+        var template = await _templateService.GetByIdAsync(req.Id);
+        if (template == null)
+        {
+            await SendNotFoundAsync(ct);
+            return;
+        }
+
+        // Try to delete the template
         var deleted = await _templateService.DeleteAsync(req.Id);
         if (!deleted)
         {
-            await SendNotFoundAsync(ct);
+            // Template exists but can't be deleted (likely in use)
+            await SendAsync(new { error = "Template cannot be deleted because it is in use" }, 400, ct);
             return;
         }
 

@@ -69,18 +69,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
                 }
                 services.AddScoped<PlatformShared.Services.ISessionService, TestSessionService>();
 
-                // Override authentication to use test scheme instead of platform authentication
-                services.PostConfigure<Microsoft.AspNetCore.Authentication.AuthenticationOptions>(options =>
-                {
-                    options.DefaultAuthenticateScheme = "Test";
-                    options.DefaultChallengeScheme = "Test";
-                });
-
-                services.AddAuthentication("Test")
-                    .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options =>
-                    {
-                        options.IsAuthenticated = true;
-                    });
+                // Don't override authentication - let Program.cs handle it completely
             });
         });
 

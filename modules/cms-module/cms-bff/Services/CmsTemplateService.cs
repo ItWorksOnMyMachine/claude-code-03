@@ -64,9 +64,11 @@ public class CmsTemplateService
         if (template == null)
             return false;
 
-        // Check if template is being used by any pages
+        // Check if template is being used by any pages or content
         var hasPages = await _context.Pages.AnyAsync(p => p.TemplateId == id);
-        if (hasPages)
+        var hasContent = await _context.Contents.AnyAsync(c => c.TemplateId == id);
+        
+        if (hasPages || hasContent)
             return false; // Cannot delete template that's in use
 
         _context.Templates.Remove(template);
