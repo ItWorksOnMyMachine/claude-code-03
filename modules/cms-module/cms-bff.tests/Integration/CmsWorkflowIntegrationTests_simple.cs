@@ -13,6 +13,7 @@ namespace CmsBff.Tests.Integration;
 /// Tests the full stack from API endpoints through services to database
 /// Relies on Program.cs Testing environment configuration
 /// </summary>
+[Collection("CmsIntegrationTests")]
 public class CmsWorkflowIntegrationTestsSimple : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

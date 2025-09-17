@@ -27,6 +27,7 @@ namespace CmsBff.Tests.Integration;
 /// Comprehensive integration tests for the complete CMS workflow
 /// Tests the full stack from API endpoints through services to database
 /// </summary>
+[Collection("CmsIntegrationTests")]
 public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -60,14 +61,14 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
                 {
                     services.Remove(entitlementDescriptor);
                 }
-                services.AddScoped<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
+                services.AddTransient<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
 
                 var sessionDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(PlatformShared.Services.ISessionService));
                 if (sessionDescriptor != null)
                 {
                     services.Remove(sessionDescriptor);
                 }
-                services.AddScoped<PlatformShared.Services.ISessionService, TestSessionService>();
+                services.AddTransient<PlatformShared.Services.ISessionService, TestSessionService>();
 
                 // Don't override authentication - let Program.cs handle it completely
             });

@@ -91,14 +91,14 @@ public static class ServiceCollectionExtensions
         })
         .AddCookie("Cookies", options =>
         {
-            options.Cookie.Name = configuration["AppSettings:CookieName"] ?? "platform.auth";
+            options.Cookie.Name = configuration["Authentication:CookieName"] ?? "platform.auth";
             options.Cookie.HttpOnly = true;
             options.Cookie.IsEssential = true;
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.ExpireTimeSpan = expiresTimeSpan;
             options.SlidingExpiration = true;
-            options.Cookie.Domain = configuration["AppSettings:CookieDomain"] ?? ".platform.local";
+            options.Cookie.Domain = configuration["Authentication:CookieDomain"] ?? ".platform.local";
             options.CookieManager = new ChunkingCookieManager();
             options.LoginPath = new PathString("/");
             options.Cookie.Expiration = null;

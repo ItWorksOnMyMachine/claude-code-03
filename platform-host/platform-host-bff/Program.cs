@@ -118,7 +118,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    options.Cookie.Name = builder.Configuration["AppSettings:CookieName"] ?? "platform.auth";
+    options.Cookie.Name = builder.Configuration["Authentication:CookieName"] ?? "platform.auth";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
