@@ -31,7 +31,7 @@ public class ISessionServiceTests
     public void ISessionService_Should_BeAnInterface()
     {
         // Assert
-        typeof(ISessionService).Should().BeInterface();
+        typeof(ISessionService).IsInterface.Should().BeTrue();
     }
 
     [Fact]

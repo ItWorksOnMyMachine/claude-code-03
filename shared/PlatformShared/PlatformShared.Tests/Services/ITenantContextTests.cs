@@ -27,7 +27,7 @@ public class ITenantContextTests
     public void ITenantContext_Should_BeAnInterface()
     {
         // Assert
-        typeof(ITenantContext).Should().BeInterface();
+        typeof(ITenantContext).IsInterface.Should().BeTrue();
     }
 
     [Fact]

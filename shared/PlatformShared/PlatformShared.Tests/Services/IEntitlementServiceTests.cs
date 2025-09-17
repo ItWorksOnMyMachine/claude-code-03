@@ -30,7 +30,7 @@ public class IEntitlementServiceTests
     public void IEntitlementService_Should_BeAnInterface()
     {
         // Assert
-        typeof(IEntitlementService).Should().BeInterface();
+        typeof(IEntitlementService).IsInterface.Should().BeTrue();
     }
 
     [Fact]
@@ -111,7 +111,8 @@ public class PlatformEntitlementsTests
         };
 
         platformEntitlements.Should().AllSatisfy(e =>
-            e.Should().StartWith("PLATFORM_") || e.Should().StartWith("TENANT_"));
+            (e.StartsWith("PLATFORM_") || e.StartsWith("TENANT_"))
+            .Should().BeTrue());
         platformEntitlements.Should().HaveCount(3);
     }
 }
