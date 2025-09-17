@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,9 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            // Use Testing environment to avoid Redis connection issues
+            builder.UseEnvironment("Testing");
+
             builder.ConfigureServices(services =>
             {
                 // Replace the database with in-memory for testing
@@ -39,8 +44,17 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
                     options.UseInMemoryDatabase("CmsIntegrationTestDb");
                 });
 
-                // Mock the entitlement service to always return true for tests
-                services.AddScoped<IEntitlementService, MockEntitlementService>();
+                // Add in-memory cache services (this mirrors what Program.cs does for Testing environment)
+                services.AddDistributedMemoryCache();
+                services.AddDataProtection()
+                    .SetApplicationName("CmsBff");
+                services.AddHttpContextAccessor();
+                services.AddHttpClient();
+
+                // Add shared services for testing
+                services.AddScoped<PlatformShared.Services.ITenantContext, PlatformShared.Services.TenantContext>();
+                services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
+                services.AddScoped<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
             });
         });
 
@@ -66,7 +80,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
         // Act 1 - Create content
-        var createResponse = await _client.PostAsync("/content", createPayload);
+        var createResponse = await _client.PostAsync("/api/cms/content", createPayload);
 
         // Assert 1 - Content created successfully
         createResponse.Should().BeSuccessful();
@@ -78,7 +92,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         createdContent.GetProperty("title").GetString().Should().Be("Integration Test Content");
 
         // Act 2 - Get content by ID
-        var getResponse = await _client.GetAsync($"/content/{contentId}");
+        var getResponse = await _client.GetAsync($"/api/cms/content/{contentId}");
 
         // Assert 2 - Content retrieved successfully
         getResponse.Should().BeSuccessful();
@@ -103,7 +117,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var updateJson = JsonSerializer.Serialize(updateContent);
         var updatePayload = new StringContent(updateJson, Encoding.UTF8, "application/json");
 
-        var updateResponse = await _client.PutAsync($"/content/{contentId}", updatePayload);
+        var updateResponse = await _client.PutAsync($"/api/cms/content/{contentId}", updatePayload);
 
         // Assert 3 - Content updated successfully
         updateResponse.Should().BeSuccessful();
@@ -114,7 +128,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         updatedContent.GetProperty("status").GetString().Should().Be("published");
 
         // Act 4 - Get all content (should include our content)
-        var getAllResponse = await _client.GetAsync("/content");
+        var getAllResponse = await _client.GetAsync("/api/cms/content");
 
         // Assert 4 - Content appears in list
         getAllResponse.Should().BeSuccessful();
@@ -125,13 +139,13 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         allContent.GetArrayLength().Should().BeGreaterThan(0);
 
         // Act 5 - Delete content
-        var deleteResponse = await _client.DeleteAsync($"/content/{contentId}");
+        var deleteResponse = await _client.DeleteAsync($"/api/cms/content/{contentId}");
 
         // Assert 5 - Content deleted successfully
         deleteResponse.Should().BeSuccessful();
 
         // Act 6 - Verify content is deleted (should return 404)
-        var getDeletedResponse = await _client.GetAsync($"/content/{contentId}");
+        var getDeletedResponse = await _client.GetAsync($"/api/cms/content/{contentId}");
 
         // Assert 6 - Content no longer accessible
         getDeletedResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
@@ -162,7 +176,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
         // Act 1 - Create template
-        var createResponse = await _client.PostAsync("/templates", createPayload);
+        var createResponse = await _client.PostAsync("/api/cms/templates", createPayload);
 
         // Assert 1 - Template created successfully
         createResponse.Should().BeSuccessful();
@@ -174,7 +188,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         createdTemplate.GetProperty("name").GetString().Should().Be("Integration Test Template");
 
         // Act 2 - Get all templates (should include our template)
-        var getAllResponse = await _client.GetAsync("/templates");
+        var getAllResponse = await _client.GetAsync("/api/cms/templates");
 
         // Assert 2 - Template appears in list
         getAllResponse.Should().BeSuccessful();
@@ -198,13 +212,13 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var contentJson = JsonSerializer.Serialize(createContent);
         var contentPayload = new StringContent(contentJson, Encoding.UTF8, "application/json");
 
-        var createContentResponse = await _client.PostAsync("/content", contentPayload);
+        var createContentResponse = await _client.PostAsync("/api/cms/content", contentPayload);
 
         // Assert 3 - Content with template created successfully
         createContentResponse.Should().BeSuccessful();
 
         // Act 4 - Try to delete template (should fail because it's in use)
-        var deleteTemplateResponse = await _client.DeleteAsync($"/templates/{templateId}");
+        var deleteTemplateResponse = await _client.DeleteAsync($"/api/cms/templates/{templateId}");
 
         // Assert 4 - Template deletion should fail
         deleteTemplateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
@@ -237,7 +251,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
         // Act 1 - Create asset (simulated upload)
-        var createResponse = await _client.PostAsync("/assets", createPayload);
+        var createResponse = await _client.PostAsync("/api/cms/assets", createPayload);
 
         // Assert 1 - Asset created successfully
         createResponse.Should().BeSuccessful();
@@ -249,7 +263,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         createdAsset.GetProperty("fileName").GetString().Should().Be("test-image.jpg");
 
         // Act 2 - Get all assets
-        var getAllResponse = await _client.GetAsync("/assets");
+        var getAllResponse = await _client.GetAsync("/api/cms/assets");
 
         // Assert 2 - Asset appears in list
         getAllResponse.Should().BeSuccessful();
@@ -267,7 +281,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         // In a real scenario, these would return 403 without proper entitlements
 
         // Act 1 - Try to access content without entitlements
-        var getContentResponse = await _client.GetAsync("/content");
+        var getContentResponse = await _client.GetAsync("/api/cms/content");
 
         // Assert 1 - Should succeed because MockEntitlementService allows all
         getContentResponse.Should().BeSuccessful();
@@ -285,7 +299,7 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
         var createJson = JsonSerializer.Serialize(createContent);
         var createPayload = new StringContent(createJson, Encoding.UTF8, "application/json");
 
-        var createResponse = await _client.PostAsync("/content", createPayload);
+        var createResponse = await _client.PostAsync("/api/cms/content", createPayload);
 
         // Assert 2 - Should succeed because MockEntitlementService allows all
         createResponse.Should().BeSuccessful();
