@@ -41,8 +41,8 @@ public class PlatformAdminAttribute : Attribute, IAsyncAuthorizationFilter
         var tenantService = context.HttpContext.RequestServices.GetService<ITenantService>();
         if (tenantService != null)
         {
-            var userIdString = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
-            var isPlatformAdmin = userIdString.IsMissing ? false : await tenantService.IsPlatformAdminAsync(userIdString.Value);
+            var userIdString = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformShared.Services.PlatformSessionKeys.UserId));
+            var isPlatformAdmin = (userIdString?.IsMissing ?? true) ? false : await tenantService.IsPlatformAdminAsync(userIdString.Value);
             if (!isPlatformAdmin)
             {
                 context.Result = new ForbidResult();
@@ -100,7 +100,7 @@ public class PlatformAdminAuthorizationHandler : AuthorizationHandler<PlatformAd
         }
 
         // Verify with tenant service
-        var userIdString = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+        var userIdString = await _sessionService.GetSessionDataAsync(sessionId, nameof(PlatformShared.Services.PlatformSessionKeys.UserId));
         var isPlatformAdmin = userIdString.IsMissing ? false : await _tenantService.IsPlatformAdminAsync(userIdString.Value);
         if (!isPlatformAdmin)
         {

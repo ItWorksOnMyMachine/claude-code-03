@@ -30,14 +30,14 @@ public class TenantContextMiddleware
         {
             // Get tenant from custom session service
             var tenantResult = await sessionService.GetSessionDataAsync(sessionId, nameof(SharedServices.PlatformSessionKeys.SelectedTenantId));
-            if (tenantResult.HasValue && Guid.TryParse(tenantResult.Value, out var parsedTenantId))
+            if (tenantResult != null && tenantResult.HasValue && Guid.TryParse(tenantResult.Value, out var parsedTenantId))
             {
                 tenantId = parsedTenantId;
             }
 
             // Get user from custom session service
             var userResult = await sessionService.GetSessionDataAsync(sessionId, nameof(SharedServices.PlatformSessionKeys.UserId));
-            if (userResult.HasValue)
+            if (userResult != null && userResult.HasValue)
             {
                 userId = userResult.Value;
             }

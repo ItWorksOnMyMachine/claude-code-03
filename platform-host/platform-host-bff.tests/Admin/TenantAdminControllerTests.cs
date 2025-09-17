@@ -21,6 +21,7 @@ using PlatformBff.Models.Tenant;
 using PlatformBff.Services;
 using PlatformBff.Services.Tenant;
 using PlatformBff.Tests.Authentication;
+using SharedModels = PlatformShared.Models;
 using Xunit;
 
 namespace PlatformBff.Tests.Admin;
@@ -64,7 +65,7 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
 
                 // Mock session service
                 var sessionService = new TestSessionService(isPlatformAdmin);
-                services.AddSingleton<ISessionService>(sessionService);
+                services.AddSingleton<PlatformShared.Services.ISessionService>(sessionService);
 
                 // Mock tenant service for platform admin check
                 var tenantServiceMock = new Mock<ITenantService>();
@@ -332,20 +333,20 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
     }
 
     // Test session service implementation for testing
-    private class TestSessionService : ISessionService
+    private class TestSessionService : PlatformShared.Services.ISessionService
     {
         private readonly bool _isPlatformAdmin;
         private readonly Dictionary<string, string> _sessionData = new();
-        private readonly Dictionary<string, TokenData> _tokens = new();
+        private readonly Dictionary<string, SharedModels.TokenData> _tokens = new();
 
         public TestSessionService(bool isPlatformAdmin)
         {
             _isPlatformAdmin = isPlatformAdmin;
 
-            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.UserId)}"] = "test-admin-user";
-            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.SelectedTenantId)}"] = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : null;
+            _sessionData[$"test-session:{nameof(PlatformShared.Services.PlatformSessionKeys.UserId)}"] = "test-admin-user";
+            _sessionData[$"test-session:{nameof(PlatformShared.Services.PlatformSessionKeys.SelectedTenantId)}"] = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : Guid.NewGuid().ToString();
 
-            _tokens["test-session"] = new TokenData
+            _tokens["test-session"] = new SharedModels.TokenData
             {
                 AccessToken = "test-token",
                 RefreshToken = "test-refresh",
@@ -354,13 +355,13 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
             };
         }
 
-        public Task StoreTokensAsync(string sessionId, TokenData tokens)
+        public Task StoreTokensAsync(string sessionId, SharedModels.TokenData tokens)
         {
             _tokens[sessionId] = tokens;
             return Task.CompletedTask;
         }
 
-        public Task<TokenData?> GetTokensAsync(string sessionId)
+        public Task<SharedModels.TokenData?> GetTokensAsync(string sessionId)
         {
             _tokens.TryGetValue(sessionId, out var tokens);
             return Task.FromResult(tokens);
@@ -382,11 +383,11 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
             return Task.CompletedTask;
         }
 
-        public Task<TokenData?> RefreshTokensAsync(string sessionId, string refreshToken)
+        public Task<SharedModels.TokenData?> RefreshTokensAsync(string sessionId, string refreshToken)
         {
             if (_tokens.ContainsKey(sessionId))
             {
-                var newTokens = new TokenData
+                var newTokens = new SharedModels.TokenData
                 {
                     AccessToken = "refreshed-token",
                     RefreshToken = "new-refresh-token",
@@ -394,9 +395,9 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                     TokenType = "Bearer"
                 };
                 _tokens[sessionId] = newTokens;
-                return Task.FromResult<TokenData?>(newTokens);
+                return Task.FromResult<SharedModels.TokenData?>(newTokens);
             }
-            return Task.FromResult<TokenData?>(null);
+            return Task.FromResult<SharedModels.TokenData?>(null);
         }
 
         public Task RevokeTokensAsync(string sessionId)
@@ -405,12 +406,12 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
             return Task.CompletedTask;
         }
 
-        public Task<HasValueOrMissingResult<string>> GetSessionDataAsync(string sessionId, string name)
+        public Task<SharedModels.HasValueOrMissingResult<string>> GetSessionDataAsync(string sessionId, string name)
         {
             _sessionData.TryGetValue($"{sessionId}:{name}", out var sessionData);
             return Task.FromResult(sessionData != null
-                ? HasValueOrMissingResult<string>.SetValue(sessionData.GetType().GetProperty(name)?.GetValue(sessionData)?.ToString() ?? "")
-                : HasValueOrMissingResult<string>.SetMissing());
+                ? SharedModels.HasValueOrMissingResult<string>.SetValue(sessionData)
+                : SharedModels.HasValueOrMissingResult<string>.SetMissing());
         }
 
         public Task StoreSessionDataAsync(string sessionId, string name, string data, DateTimeOffset? expiresAt = null)
