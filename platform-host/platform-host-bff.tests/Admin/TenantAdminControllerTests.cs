@@ -80,14 +80,11 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                 services.AddHttpClient();
 
                 // Register shared services interfaces
-                services.AddScoped<PlatformShared.Services.ITenantContext, PlatformShared.Services.TenantContext>();
-                services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
                 services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 
-                // Register BFF-specific interfaces for middleware (use real implementation like working tests)
+                // Register BFF-specific interfaces for middleware (use SAME fake service, not mocks)
                 services.AddScoped<PlatformBff.Services.ITenantContext, TestTenantContext>();
-                var mockBffSessionService = new Mock<PlatformBff.Services.ISessionService>();
-                services.AddScoped<PlatformBff.Services.ISessionService>(_ => mockBffSessionService.Object);
+                services.AddScoped<PlatformBff.Services.ISessionService>(_ => sessionService);
 
                 // Add test authentication handler to bypass auth
                 services.AddAuthentication(options =>

@@ -15,6 +15,7 @@ using System.Net;
 using Xunit;
 using Microsoft.EntityFrameworkCore;
 using PlatformBff.Data;
+using Moq;
 
 namespace PlatformBff.Tests.Authentication;
 
@@ -44,7 +45,20 @@ public class AuthenticationConfigurationTests : IClassFixture<WebApplicationFact
                 {
                     options.UseInMemoryDatabase("InMemoryDbForTesting");
                 });
-                
+
+                // Add required services for middleware (same as working tests)
+                services.AddDistributedMemoryCache();
+                services.AddHttpContextAccessor();
+                services.AddHttpClient();
+
+                // Add mock session service for middleware (it doesn't need to work, just exist)
+                var mockSessionService = new Moq.Mock<PlatformBff.Services.ISessionService>();
+                services.AddScoped<PlatformBff.Services.ISessionService>(_ => mockSessionService.Object);
+
+                // Add mock tenant context for middleware
+                var mockTenantContext = new Moq.Mock<PlatformBff.Services.ITenantContext>();
+                services.AddScoped<PlatformBff.Services.ITenantContext>(_ => mockTenantContext.Object);
+
                 // Configure static OIDC configuration to avoid network calls
                 services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
                 {
