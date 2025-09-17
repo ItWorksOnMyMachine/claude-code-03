@@ -20,6 +20,7 @@ using PlatformBff.Models;
 using PlatformBff.Models.Tenant;
 using PlatformBff.Services;
 using PlatformBff.Services.Tenant;
+using static PlatformBff.Services.PlatformBffSessionKeys;
 using PlatformBff.Tests.Authentication;
 using SharedModels = PlatformShared.Models;
 using Xunit;
@@ -83,9 +84,8 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                 services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
                 services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 
-                // Register BFF-specific interfaces for middleware
-                var mockTenantContext = new Mock<PlatformBff.Services.ITenantContext>();
-                services.AddScoped<PlatformBff.Services.ITenantContext>(_ => mockTenantContext.Object);
+                // Register BFF-specific interfaces for middleware (use real implementation like working tests)
+                services.AddScoped<PlatformBff.Services.ITenantContext, TestTenantContext>();
                 var mockBffSessionService = new Mock<PlatformBff.Services.ISessionService>();
                 services.AddScoped<PlatformBff.Services.ISessionService>(_ => mockBffSessionService.Object);
 
@@ -343,8 +343,10 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
         {
             _isPlatformAdmin = isPlatformAdmin;
 
-            _sessionData[$"test-session:{nameof(PlatformShared.Services.PlatformSessionKeys.UserId)}"] = "test-admin-user";
-            _sessionData[$"test-session:{nameof(PlatformShared.Services.PlatformSessionKeys.SelectedTenantId)}"] = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : Guid.NewGuid().ToString();
+            // Use the old session key format that works in PlatformAdminAccessTests
+            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.UserId)}"] = "test-admin-user";
+            var tenantId = _isPlatformAdmin ? Guid.Parse("00000000-0000-0000-0000-000000000001").ToString() : Guid.NewGuid().ToString();
+            _sessionData[$"test-session:{nameof(PlatformBffSessionKeys.SelectedTenantId)}"] = tenantId;
 
             _tokens["test-session"] = new SharedModels.TokenData
             {
@@ -418,6 +420,74 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
         {
             _sessionData[$"{sessionId}:{name}"] = data;
             return Task.CompletedTask;
+        }
+    }
+
+    // Working TestTenantContext implementation from PlatformAdminAccessTests
+    private class TestTenantContext : ITenantContext
+    {
+        private readonly IServiceProvider _serviceProvider;
+        private Guid? _currentTenantId;
+        private string? _currentUserId;
+
+        public TestTenantContext(IServiceProvider serviceProvider)
+        {
+            _serviceProvider = serviceProvider;
+        }
+
+        public async Task<Guid?> GetCurrentTenantIdAsync()
+        {
+            if (_currentTenantId.HasValue)
+                return _currentTenantId;
+
+            var httpContext = _serviceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()?.HttpContext;
+
+            var sessionId = httpContext?.User.FindFirst("session_id")?.Value;
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return null;
+            }
+
+            var sessionService = _serviceProvider.GetRequiredService<ISessionService>();
+            var SelectedTenantIdResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+            return SelectedTenantIdResult.HasValue && Guid.TryParse(SelectedTenantIdResult.Value, out var tenantId)
+                ? tenantId
+                : null;
+        }
+
+        public Task SetTenant(Guid tenantId)
+        {
+            _currentTenantId = tenantId;
+            return Task.CompletedTask;
+        }
+
+        public Task ClearTenant()
+        {
+            _currentTenantId = null;
+            return Task.CompletedTask;
+        }
+
+        public async Task<bool> IsPlatformTenant()
+        {
+            var tenantId = await GetCurrentTenantIdAsync();
+            return tenantId.HasValue && tenantId.Value == Guid.Parse("00000000-0000-0000-0000-000000000001");
+        }
+
+        public async Task<string?> GetCurrentUserId()
+        {
+            if (!string.IsNullOrEmpty(_currentUserId))
+                return _currentUserId;
+
+            var httpContext = _serviceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()?.HttpContext;
+            var sessionId = httpContext?.User.FindFirst("session_id")?.Value;
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return null;
+            }
+
+            var sessionService = _serviceProvider.GetRequiredService<ISessionService>();
+            var userIdResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            return userIdResult.HasValue ? userIdResult.Value : null;
         }
     }
 }
