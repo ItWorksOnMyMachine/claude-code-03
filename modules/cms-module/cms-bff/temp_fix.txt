@@ -1,0 +1,15 @@
+    public Task SetTenant(Guid tenantId)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task ClearTenant()
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> IsPlatformTenant()
+    {
+        return Task.FromResult(false);
+    }
+}

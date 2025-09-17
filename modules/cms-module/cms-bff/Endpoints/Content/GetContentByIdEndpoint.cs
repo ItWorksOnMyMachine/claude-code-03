@@ -11,7 +11,7 @@ public class GetContentByIdRequest
     public Guid Id { get; set; }
 }
 
-[HttpGet("/content/{id}"), Authorize, RequireCmsAccess]
+[HttpGet("/api/cms/content/{id}"), Authorize, RequireCmsAccess]
 public class GetContentByIdEndpoint : Endpoint<GetContentByIdRequest, CmsContent>
 {
     private readonly CmsContentService _contentService;

@@ -7,6 +7,10 @@ using PlatformShared.Extensions;
 using PlatformShared.Services;
 using PlatformShared.Middleware;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,15 +23,28 @@ if (builder.Environment.IsEnvironment("Testing"))
     // For testing environment, use in-memory database and services to avoid Redis dependency
     builder.Services.AddDbContext<CmsDbContext>(options =>
         options.UseInMemoryDatabase("CmsIntegrationTestDb"));
-    
+
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddDataProtection()
         .SetApplicationName("CmsBff");
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddHttpClient();
+
+    // Add session services for testing
+    builder.Services.AddSession(options =>
+    {
+        options.IdleTimeout = TimeSpan.FromMinutes(30);
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+    });
+
+    // Add authentication and authorization for testing
+    builder.Services.AddAuthentication("Test")
+        .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
+    builder.Services.AddAuthorization();
+
     builder.Services.AddScoped<ITenantContext, TenantContext>();
     builder.Services.AddScoped<ISessionService, DistributedSessionService>();
-    builder.Services.AddAuthorization();
     builder.Services.AddScoped<IEntitlementService, EntitlementService>();
 }
 else
@@ -35,11 +52,11 @@ else
     // Production environment uses PostgreSQL database and shared platform services with Redis
     builder.Services.AddDbContext<CmsDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-    
+
     // Add shared platform services (Redis, Data Protection, Session, Tenant Context)
     builder.Services.AddPlatformSharedServices(builder.Configuration);
-
-    // Add shared platform authentication
+    
+    // Add shared platform authentication for non-testing environments
     builder.Services.AddPlatformAuthentication(builder.Configuration);
 }
 
@@ -73,12 +90,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseSession();
+
+// Add authentication and authorization middleware for all environments
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseFastEndpoints(c =>
 {
-    c.Endpoints.RoutePrefix = "api/cms";
 });
 
 // Ensure database is created (only for non-testing environments to avoid conflicts)
@@ -92,6 +110,33 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 
 app.Run();
+
+// Simple test authentication handler for testing environment
+public class TestAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    public TestAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        // For testing, always return a successful authentication with a test user
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, "TestUser"),
+            new Claim(ClaimTypes.NameIdentifier, "test-user-id"),
+            new Claim("tenant", "test-tenant")
+        };
+
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+}
 
 // Make Program class accessible for testing
 public partial class Program { }

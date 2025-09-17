@@ -6,7 +6,7 @@ using PlatformShared.Authorization;
 
 namespace CmsBff.Endpoints.Assets;
 
-[HttpGet("/assets"), Authorize, RequireCmsAssets]
+[HttpGet("/api/cms/assets"), Authorize, RequireCmsAssets]
 public class GetAllAssetsEndpoint : EndpointWithoutRequest<IEnumerable<CmsAsset>>
 {
     private readonly CmsAssetService _assetService;

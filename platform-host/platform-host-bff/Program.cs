@@ -15,6 +15,7 @@ using System.Security.Claims;
 using FastEndpoints;
 using PlatformShared.Extensions;
 using PlatformShared.Services;
+using PlatformShared.DataProtection.S3;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,6 +83,26 @@ builder.Services.AddScoped<ITenantAdminService, TenantAdminService>();
 // Add Shared Services
 builder.Services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 
+builder.Services.AddDataProtection()
+    // This isn't ideal, but for local development we'll use file system storage
+    // In production, consider using a more robust solution like AWS S3 or Azure Blob Storage
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\\temp\\platform-keys"))
+    // Example for S3 (uncomment and configure as needed):
+    // .PersistKeysToS3(new S3XmlRepositoryConfiguration
+    // {
+    //     BucketName = builder.Configuration["AppSettings:DocumentRootBucketName"],
+    //     KeyId = builder.Configuration["AppSettings:DocumentRootBucketKey"],
+    //     Prefix = "app-data/shared/asp-keys"
+    // })
+    .SetApplicationName("Platform");
+
+builder.Services.AddSingleton<TicketDataFormat>((services) =>
+{
+    var provider = services.GetDataProtectionProvider();
+    var protector = provider.CreateProtector("Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware", "Cookies", "v2");
+    return new TicketDataFormat(protector);
+});
+
 #if DEBUG
 var expiresTimeSpan = TimeSpan.FromDays(1);
 #else
@@ -89,7 +110,7 @@ var expiresTimeSpan = TimeSpan.FromDays(1);
 #endif
 
 // Add Authentication services
-builder.Services.AddAuthentication(options =>
+var authBuilder = builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -97,7 +118,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    options.Cookie.Name = "platform.auth";
+    options.Cookie.Name = builder.Configuration["AppSettings:CookieName"] ?? "platform.auth";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
@@ -105,7 +126,7 @@ builder.Services.AddAuthentication(options =>
     options.CookieManager = new ChunkingCookieManager();
     options.ExpireTimeSpan = expiresTimeSpan;
     options.SlidingExpiration = true;
-    options.Cookie.Domain = builder.Configuration["Authentication:CookieDomain"]; // Set domain if specified
+    options.Cookie.Domain = builder.Configuration["Authentication:CookieDomain"] ?? ".platform.local"; // Set domain if specified
     options.LoginPath = "/api/auth/login";
     options.LogoutPath = "/api/auth/logout";
     options.AccessDeniedPath = "/api/auth/access-denied";
@@ -135,8 +156,16 @@ builder.Services.AddAuthentication(options =>
             return Task.CompletedTask;
         },
     };
-})
-.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+});
+
+builder.Services
+    .AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+    .PostConfigure<TicketDataFormat>((opt, tdf) =>
+    {
+        opt.TicketDataFormat = tdf;
+    });
+
+authBuilder.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.SignOutScheme = CookieAuthenticationDefaults.AuthenticationScheme;

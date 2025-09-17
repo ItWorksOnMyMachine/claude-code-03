@@ -6,7 +6,7 @@ using PlatformShared.Authorization;
 
 namespace CmsBff.Endpoints.Templates;
 
-[HttpGet("/templates"), Authorize, RequireCmsTemplates]
+[HttpGet("/api/cms/templates"), Authorize, RequireCmsTemplates]
 public class GetAllTemplatesEndpoint : EndpointWithoutRequest<IEnumerable<CmsTemplate>>
 {
     private readonly CmsTemplateService _templateService;

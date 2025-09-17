@@ -7,6 +7,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Identity;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -50,51 +54,33 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
 
             builder.ConfigureServices(services =>
             {
-                // Replace the database with in-memory for testing
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<CmsDbContext>));
-                if (descriptor != null)
+                // Override services for testing
+                var entitlementDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(PlatformShared.Services.IEntitlementService));
+                if (entitlementDescriptor != null)
                 {
-                    services.Remove(descriptor);
+                    services.Remove(entitlementDescriptor);
                 }
-
-                services.AddDbContext<CmsDbContext>(options =>
-                {
-                    options.UseInMemoryDatabase("CmsIntegrationTestDb");
-                });
-
-                // Add in-memory cache services (this mirrors what Program.cs does for Testing environment)
-                services.AddDistributedMemoryCache();
-                services.AddDataProtection()
-                    .SetApplicationName("CmsBff");
-                services.AddHttpContextAccessor();
-                services.AddHttpClient();
-
-                // Add shared services for testing
-                services.AddScoped<PlatformShared.Services.ITenantContext, PlatformShared.Services.TenantContext>();
-                services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
                 services.AddScoped<PlatformShared.Services.IEntitlementService, MockEntitlementService>();
 
-                // Configure static OIDC configuration to avoid network calls (same as platform-bff tests)
-                services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+                var sessionDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(PlatformShared.Services.ISessionService));
+                if (sessionDescriptor != null)
                 {
-                    // Create a static OIDC configuration
-                    var config = new OpenIdConnectConfiguration
-                    {
-                        Issuer = "https://test-idp.local",
-                        AuthorizationEndpoint = "https://test-idp.local/connect/authorize",
-                        TokenEndpoint = "https://test-idp.local/connect/token",
-                        UserInfoEndpoint = "https://test-idp.local/connect/userinfo",
-                        JwksUri = "https://test-idp.local/.well-known/jwks",
-                        EndSessionEndpoint = "https://test-idp.local/connect/endsession"
-                    };
+                    services.Remove(sessionDescriptor);
+                }
+                services.AddScoped<PlatformShared.Services.ISessionService, TestSessionService>();
 
-                    // Add a test signing key
-                    config.SigningKeys.Add(new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                        System.Text.Encoding.UTF8.GetBytes("test-key-for-integration-tests-only")));
-
-                    options.Configuration = config;
-                    options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(config);
+                // Override authentication to use test scheme instead of platform authentication
+                services.PostConfigure<Microsoft.AspNetCore.Authentication.AuthenticationOptions>(options =>
+                {
+                    options.DefaultAuthenticateScheme = "Test";
+                    options.DefaultChallengeScheme = "Test";
                 });
+
+                services.AddAuthentication("Test")
+                    .AddScheme<TestAuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options =>
+                    {
+                        options.IsAuthenticated = true;
+                    });
             });
         });
 
@@ -364,6 +350,47 @@ public class CmsWorkflowIntegrationTests : IClassFixture<WebApplicationFactory<P
 }
 
 /// <summary>
+/// Test session service that provides session data for test-session
+/// </summary>
+public class TestSessionService : PlatformShared.Services.ISessionService
+{
+    private readonly Dictionary<string, string> _sessionData = new();
+
+    public TestSessionService()
+    {
+        // Set up session data for the test-session that TestAuthenticationHandler creates
+        _sessionData["test-session:UserId"] = "test-user";
+        _sessionData["test-session:SelectedTenantId"] = Guid.NewGuid().ToString();
+    }
+
+    public Task<PlatformShared.Models.HasValueOrMissingResult<string>> GetSessionDataAsync(string sessionId, string name)
+    {
+        _sessionData.TryGetValue($"{sessionId}:{name}", out var sessionData);
+        return Task.FromResult(sessionData != null
+            ? PlatformShared.Models.HasValueOrMissingResult<string>.SetValue(sessionData)
+            : PlatformShared.Models.HasValueOrMissingResult<string>.SetMissing());
+    }
+
+    public Task StoreSessionDataAsync(string sessionId, string name, string data, DateTimeOffset? expiresAt = null)
+    {
+        _sessionData[$"{sessionId}:{name}"] = data;
+        return Task.CompletedTask;
+    }
+
+    // Other ISessionService methods - minimal implementations for testing
+    public Task StoreTokensAsync(string sessionId, PlatformShared.Models.TokenData tokens) => Task.CompletedTask;
+    public Task<PlatformShared.Models.TokenData?> GetTokensAsync(string sessionId) => Task.FromResult<PlatformShared.Models.TokenData?>(null);
+    public Task<PlatformShared.Models.TokenData?> RefreshTokensAsync(string sessionId, string refreshToken) => Task.FromResult<PlatformShared.Models.TokenData?>(null);
+    public Task RevokeTokensAsync(string sessionId) => Task.CompletedTask;
+    public Task RemoveSessionAsync(string sessionId) => Task.CompletedTask;
+    public Task RemoveSessionDataAsync(string sessionId, string name)
+    {
+        _sessionData.Remove($"{sessionId}:{name}");
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>
 /// Mock entitlement service for integration testing
 /// Always returns true to allow testing of business logic
 /// </summary>
@@ -419,5 +446,64 @@ public class MockEntitlementService : IEntitlementService
     public Task RefreshEntitlementsAsync()
     {
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Test authentication handler that always authenticates users
+/// Same pattern as working platform-bff tests
+/// </summary>
+public class TestAuthenticationHandler : AuthenticationHandler<TestAuthenticationSchemeOptions>
+{
+    public TestAuthenticationHandler(IOptionsMonitor<TestAuthenticationSchemeOptions> options,
+        ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Options.IsAuthenticated)
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Test User"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "test-user"),
+            new System.Security.Claims.Claim("sub", "test-user"),
+            new System.Security.Claims.Claim("session_id", "test-session")
+        };
+
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "Test");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+}
+
+/// <summary>
+/// Options for test authentication scheme
+/// </summary>
+public class TestAuthenticationSchemeOptions : AuthenticationSchemeOptions
+{
+    public bool IsAuthenticated { get; set; } = false;
+}
+
+/// <summary>
+/// Mock password hasher for testing - not actually used but required by Identity system
+/// </summary>
+public class MockPasswordHasher<T> : IPasswordHasher<T> where T : class
+{
+    public string HashPassword(T user, string password)
+    {
+        return "mock-hashed-password";
+    }
+
+    public PasswordVerificationResult VerifyHashedPassword(T user, string hashedPassword, string providedPassword)
+    {
+        return PasswordVerificationResult.Success;
     }
 }

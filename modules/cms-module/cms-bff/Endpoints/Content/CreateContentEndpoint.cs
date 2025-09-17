@@ -53,7 +53,7 @@ public class CreateContentValidator : Validator<CreateContentRequest>
     }
 }
 
-[HttpPost("/content"), Authorize, RequireCmsManage]
+[HttpPost("/api/cms/content"), Authorize, RequireCmsManage]
 public class CreateContentEndpoint : Endpoint<CreateContentRequest, CmsContent>
 {
     private readonly CmsContentService _contentService;

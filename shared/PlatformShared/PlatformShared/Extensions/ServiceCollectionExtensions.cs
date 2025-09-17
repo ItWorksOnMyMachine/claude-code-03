@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PlatformShared.Services;
@@ -54,42 +57,59 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+#if DEBUG
+        var expiresTimeSpan = TimeSpan.FromDays(1);
+#else
+    var expiresTimeSpan = TimeSpan.FromMinutes(120);
+#endif
+
         var authConfig = configuration.GetSection("Authentication");
+
+        services.AddDataProtection()
+            // This isn't ideal, but for local development we'll use file system storage
+            // In production, consider using a more robust solution like AWS S3 or Azure Blob Storage
+            .PersistKeysToFileSystem(new DirectoryInfo(@"C:\\temp\\platform-keys"))
+            // Example for S3 (uncomment and configure as needed):
+            // .PersistKeysToS3(new S3XmlRepositoryConfiguration
+            // {
+            //     BucketName = builder.Configuration["AppSettings:DocumentRootBucketName"],
+            //     KeyId = builder.Configuration["AppSettings:DocumentRootBucketKey"],
+            //     Prefix = "app-data/shared/asp-keys"
+            // })
+            .SetApplicationName("Platform");
+
+        services.AddSingleton<TicketDataFormat>((services) =>
+        {
+            var provider = services.GetDataProtectionProvider();
+            var protector = provider.CreateProtector("Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware", "Cookies", "v2");
+            return new TicketDataFormat(protector);
+        });
 
         services.AddAuthentication(options =>
         {
             options.DefaultScheme = "Cookies";
-            options.DefaultChallengeScheme = "oidc";
         })
         .AddCookie("Cookies", options =>
         {
-            options.Cookie.Name = "platform.auth";
+            options.Cookie.Name = configuration["AppSettings:CookieName"] ?? "platform.auth";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
-            options.Cookie.Domain = ".platform.local";
-            options.ExpireTimeSpan = TimeSpan.FromHours(2);
+            options.Cookie.IsEssential = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.ExpireTimeSpan = expiresTimeSpan;
             options.SlidingExpiration = true;
-            options.Events.OnRedirectToLogin = context =>
-            {
-                context.Response.StatusCode = 401;
-                return Task.CompletedTask;
-            };
-        })
-        .AddOpenIdConnect("oidc", options =>
-        {
-            options.Authority = authConfig["Authority"];
-            options.ClientId = authConfig["ClientId"];
-            options.ClientSecret = authConfig["ClientSecret"];
-            options.ResponseType = "code";
-            options.Scope.Clear();
-            options.Scope.Add("openid");
-            options.Scope.Add("profile");
-            options.Scope.Add("platform_api");
-            options.UsePkce = true;
-            options.SaveTokens = false; // We handle tokens manually
-            options.GetClaimsFromUserInfoEndpoint = true;
+            options.Cookie.Domain = configuration["AppSettings:CookieDomain"] ?? ".platform.local";
+            options.CookieManager = new ChunkingCookieManager();
+            options.LoginPath = new PathString("/");
+            options.Cookie.Expiration = null;
         });
+
+        services
+            .AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+            .PostConfigure<TicketDataFormat>((opt, tdf) =>
+            {
+                opt.TicketDataFormat = tdf;
+            });
 
         services.AddAuthorization();
 

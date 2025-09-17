@@ -57,7 +57,7 @@ public class UpdateContentValidator : Validator<UpdateContentRequest>
     }
 }
 
-[HttpPut("/content/{id}"), Authorize, RequireCmsManage]
+[HttpPut("/api/cms/content/{id}"), Authorize, RequireCmsManage]
 public class UpdateContentEndpoint : Endpoint<UpdateContentRequest, CmsContent>
 {
     private readonly CmsContentService _contentService;

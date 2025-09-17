@@ -4,26 +4,26 @@ using CmsBff.Services;
 using PlatformShared.Services;
 using PlatformShared.Authorization;
 
-namespace CmsBff.Endpoints.Content;
+namespace CmsBff.Endpoints.Templates;
 
-public class DeleteContentRequest
+public class DeleteTemplateRequest
 {
     public Guid Id { get; set; }
 }
 
-[HttpDelete("/api/cms/content/{id}"), Authorize, RequireCmsManage]
-public class DeleteContentEndpoint : Endpoint<DeleteContentRequest>
+[HttpDelete("/api/cms/templates/{id}"), Authorize, RequireCmsTemplates]
+public class DeleteTemplateEndpoint : Endpoint<DeleteTemplateRequest>
 {
-    private readonly CmsContentService _contentService;
+    private readonly CmsTemplateService _templateService;
     private readonly ITenantContext _tenantContext;
 
-    public DeleteContentEndpoint(CmsContentService contentService, ITenantContext tenantContext)
+    public DeleteTemplateEndpoint(CmsTemplateService templateService, ITenantContext tenantContext)
     {
-        _contentService = contentService;
+        _templateService = templateService;
         _tenantContext = tenantContext;
     }
 
-    public override async Task HandleAsync(DeleteContentRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteTemplateRequest req, CancellationToken ct)
     {
         var tenantId = await _tenantContext.GetCurrentTenantIdAsync();
         if (tenantId == null)
@@ -32,9 +32,8 @@ public class DeleteContentEndpoint : Endpoint<DeleteContentRequest>
             return;
         }
 
-        var success = await _contentService.DeleteAsync(req.Id);
-        
-        if (!success)
+        var deleted = await _templateService.DeleteAsync(req.Id);
+        if (!deleted)
         {
             await SendNotFoundAsync(ct);
             return;

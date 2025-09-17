@@ -5,7 +5,7 @@ using CmsBff.Services;
 
 namespace CmsBff.Endpoints.Content;
 
-[HttpGet("/content"), Authorize]
+[HttpGet("/api/cms/content"), Authorize]
 public class GetAllContentEndpoint : EndpointWithoutRequest<IEnumerable<CmsContent>>
 {
     private readonly CmsContentService _contentService;
