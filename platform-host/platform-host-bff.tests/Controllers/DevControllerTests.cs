@@ -36,7 +36,7 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var testId = System.Threading.Interlocked.Increment(ref _testCounter);
         var dbName = $"DevControllerTest_{testId}";
-        
+
         return _factory.WithWebHostBuilder(builder =>
         {
             // Use Testing environment to avoid Redis connection
@@ -46,7 +46,7 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
                 // Replace DbContext with in-memory database
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<PlatformDbContext>));
                 if (descriptor != null) services.Remove(descriptor);
-                
+
                 services.AddDbContext<PlatformDbContext>(options =>
                 {
                     options.UseInMemoryDatabase(dbName);
@@ -60,9 +60,9 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
                     .Returns(mockDatabase.Object);
                 mockDatabase.Setup(x => x.PingAsync(It.IsAny<CommandFlags>()))
                     .ReturnsAsync(TimeSpan.FromMilliseconds(1));
-                
+
                 services.AddSingleton(mockRedis.Object);
-                
+
 
                 // Add required services for middleware
                 services.AddDistributedMemoryCache();
@@ -75,15 +75,15 @@ public class DevControllerTests : IClassFixture<WebApplicationFactory<Program>>
                 services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 
                 // Register BFF-specific session service for TokenRefreshMiddleware
-n                // Register BFF-specific tenant context for TenantContextMiddleware
+                // Register BFF-specific tenant context for TenantContextMiddleware
                 var mockTenantContext = new Mock<PlatformBff.Services.ITenantContext>();
                 services.AddScoped<PlatformBff.Services.ITenantContext>(_ => mockTenantContext.Object);
                 var mockSessionService = new Mock<PlatformBff.Services.ISessionService>();
                 services.AddScoped<PlatformBff.Services.ISessionService>(_ => mockSessionService.Object);
-                
+
                 // Override IHostEnvironment to simulate Development or Production
-                services.AddSingleton<IHostEnvironment>(new TestHostEnvironment 
-                { 
+                services.AddSingleton<IHostEnvironment>(new TestHostEnvironment
+                {
                     EnvironmentName = isDevelopment ? "Development" : "Production",
                     ApplicationName = "PlatformBff",
                     ContentRootPath = Directory.GetCurrentDirectory()
@@ -117,7 +117,7 @@ n                // Register BFF-specific tenant context for TenantContextMiddle
     {
         // Arrange
         var client = CreateTestClient(isDevelopment: true);
-        
+
         // Test an endpoint that doesn't require external services
         var endpoint = "/dev/config/verify";
 
@@ -134,7 +134,7 @@ n                // Register BFF-specific tenant context for TenantContextMiddle
     {
         // Arrange
         var client = CreateTestClient(isDevelopment: false);
-        
+
         // Test POST endpoints - in production, these should either return Forbidden
         // or fail validation (BadRequest) but never execute successfully
         var postEndpoints = new (string endpoint, object payload)[]
@@ -148,11 +148,11 @@ n                // Register BFF-specific tenant context for TenantContextMiddle
         foreach (var (endpoint, payload) in postEndpoints)
         {
             var response = await client.PostAsJsonAsync(endpoint, payload);
-            
+
             // In production, dev endpoints should not succeed
             response.IsSuccessStatusCode.Should().BeFalse(
                 $"POST endpoint {endpoint} should not be accessible in production");
-            
+
             // They should return either Forbidden (blocked by attribute) 
             // or BadRequest (validation failed after attribute check)
             var acceptableStatuses = new[] { HttpStatusCode.Forbidden, HttpStatusCode.BadRequest };
@@ -197,7 +197,7 @@ n                // Register BFF-specific tenant context for TenantContextMiddle
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        content.Should().Contain("development environment", 
+        content.Should().Contain("development environment",
             "Response should indicate this is a development-only endpoint");
     }
 

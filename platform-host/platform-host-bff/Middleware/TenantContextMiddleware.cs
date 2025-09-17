@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using PlatformBff.Models;
 using PlatformBff.Services;
+using SharedServices = PlatformShared.Services;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -28,14 +29,14 @@ public class TenantContextMiddleware
         if (!string.IsNullOrEmpty(sessionId))
         {
             // Get tenant from custom session service
-            var tenantResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.SelectedTenantId));
+            var tenantResult = await sessionService.GetSessionDataAsync(sessionId, nameof(SharedServices.PlatformSessionKeys.SelectedTenantId));
             if (tenantResult.HasValue && Guid.TryParse(tenantResult.Value, out var parsedTenantId))
             {
                 tenantId = parsedTenantId;
             }
 
             // Get user from custom session service
-            var userResult = await sessionService.GetSessionDataAsync(sessionId, nameof(PlatformBffSessionKeys.UserId));
+            var userResult = await sessionService.GetSessionDataAsync(sessionId, nameof(SharedServices.PlatformSessionKeys.UserId));
             if (userResult.HasValue)
             {
                 userId = userResult.Value;

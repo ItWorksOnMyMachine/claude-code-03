@@ -72,6 +72,22 @@ public class TenantAdminControllerTests : IClassFixture<WebApplicationFactory<Pr
                     .ReturnsAsync(isPlatformAdmin);
                 services.AddScoped<ITenantService>(_ => tenantServiceMock.Object);
 
+                // Add required services for middleware (same as DevControllerTests)
+                services.AddDistributedMemoryCache();
+                services.AddHttpContextAccessor();
+                services.AddHttpClient();
+
+                // Register shared services interfaces
+                services.AddScoped<PlatformShared.Services.ITenantContext, PlatformShared.Services.TenantContext>();
+                services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
+                services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
+
+                // Register BFF-specific interfaces for middleware
+                var mockTenantContext = new Mock<PlatformBff.Services.ITenantContext>();
+                services.AddScoped<PlatformBff.Services.ITenantContext>(_ => mockTenantContext.Object);
+                var mockBffSessionService = new Mock<PlatformBff.Services.ISessionService>();
+                services.AddScoped<PlatformBff.Services.ISessionService>(_ => mockBffSessionService.Object);
+
                 // Add test authentication handler to bypass auth
                 services.AddAuthentication(options =>
                 {

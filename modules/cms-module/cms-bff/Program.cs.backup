@@ -25,19 +25,8 @@ if (builder.Environment.IsEnvironment("Testing"))
         .SetApplicationName("CmsBff");
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddHttpClient();
-    
-    // Add session services for testing
-    builder.Services.AddSession(options =>
-    {
-        options.IdleTimeout = TimeSpan.FromMinutes(30);
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-    });
-    
     builder.Services.AddScoped<ITenantContext, TenantContext>();
     builder.Services.AddScoped<ISessionService, DistributedSessionService>();
-    
-    // Note: Authentication will be configured by the test setup
     builder.Services.AddAuthorization();
     builder.Services.AddScoped<IEntitlementService, EntitlementService>();
 }
@@ -84,18 +73,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseSession();
-
-// Only add authentication/authorization middleware if not in Testing environment
-// (Testing environment will handle this through WebApplicationFactory configuration)
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    app.UseAuthentication();
-    app.UseAuthorization();
-}
-
-// Health check endpoint (outside of FastEndpoints to avoid route prefix)
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "CMS BFF", timestamp = DateTime.UtcNow }))
-   .WithName("HealthCheck");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseFastEndpoints(c =>
 {
