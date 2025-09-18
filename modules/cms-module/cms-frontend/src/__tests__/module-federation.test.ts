@@ -43,12 +43,12 @@ describe('Module Federation Configuration', () => {
   });
 
   test('should expose CmsApp component', () => {
-    expect(expectedConfig.exposes).toHaveProperty('./CmsApp');
+    expect(expectedConfig.exposes).toBeDefined();
     expect(expectedConfig.exposes['./CmsApp']).toBe('./src/CmsApp');
   });
 
   test('should expose CmsRouter component', () => {
-    expect(expectedConfig.exposes).toHaveProperty('./CmsRouter');
+    expect(expectedConfig.exposes).toBeDefined();
     expect(expectedConfig.exposes['./CmsRouter']).toBe('./src/CmsRouter');
   });
 

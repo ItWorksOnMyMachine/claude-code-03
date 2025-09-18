@@ -2,58 +2,39 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from '@modern-js/runtime/router';
 
-// Mock the lazy components before importing CmsRouter
-jest.mock('../components/ContentList', () => {
-  return {
-    __esModule: true,
-    default: function MockContentList(props: any) {
-      return (
-        <div data-testid="content-list">
-          Content List - Tenant: {props.tenantId || 'none'}
-        </div>
-      );
-    },
-  };
-});
+// Mock the lazy loaded components
+jest.mock('../components/ContentList', () => ({
+  __esModule: true,
+  default: function MockContentList(props: any) {
+    return (
+      <div data-testid="content-list">
+        Content List - Tenant: {props.tenantId || 'none'}
+      </div>
+    );
+  },
+}));
 
-jest.mock('../components/ContentEditor', () => {
-  return {
-    __esModule: true,
-    default: function MockContentEditor(props: any) {
-      return (
-        <div data-testid="content-editor">
-          Content Editor - User: {props.userId || 'none'}
-        </div>
-      );
-    },
-  };
-});
+jest.mock('../components/ContentEditor', () => ({
+  __esModule: true,
+  default: function MockContentEditor(props: any) {
+    return (
+      <div data-testid="content-editor">
+        Content Editor - User: {props.userId || 'none'}
+      </div>
+    );
+  },
+}));
 
-jest.mock('../components/AssetManager', () => {
-  return {
-    __esModule: true,
-    default: function MockAssetManager(props: any) {
-      return (
-        <div data-testid="asset-manager">
-          Asset Manager - Token: {props.authToken || 'none'}
-        </div>
-      );
-    },
-  };
-});
-
-// Mock React.lazy to return the mocked components immediately
-jest.mock('react', () => {
-  const actualReact = jest.requireActual('react');
-  return {
-    ...actualReact,
-    lazy: jest.fn((importFunc) => {
-      // Call the import function immediately and return the default export
-      const module = importFunc();
-      return module.default;
-    }),
-  };
-});
+jest.mock('../components/AssetManager', () => ({
+  __esModule: true,
+  default: function MockAssetManager(props: any) {
+    return (
+      <div data-testid="asset-manager">
+        Asset Manager - Token: {props.authToken || 'none'}
+      </div>
+    );
+  },
+}));
 
 // Import CmsRouter after mocks are set up
 import CmsRouter from '../CmsRouter';

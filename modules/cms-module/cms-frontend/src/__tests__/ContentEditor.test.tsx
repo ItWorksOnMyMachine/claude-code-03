@@ -4,6 +4,22 @@ import { MemoryRouter } from '@modern-js/runtime/router';
 import ContentEditor from '../components/ContentEditor';
 import { CmsApiService } from '../services/CmsApiService';
 
+// Mock the router hooks - need to define the function inline to avoid hoisting issues
+jest.mock('@modern-js/runtime/router', () => {
+  const React = require('react');
+  return {
+    ...jest.requireActual('@modern-js/runtime/router'),
+    useParams: jest.fn(() => ({})),
+    // Use forwardRef to make Link compatible with MUI Button component prop
+    Link: React.forwardRef(({ children, to, ...props }: any, ref: any) => (
+      <a ref={ref} href={to} {...props}>{children}</a>
+    )),
+  };
+});
+
+// Import useParams after the mock is set up
+import { useParams } from '@modern-js/runtime/router';
+
 // Mock GrapesJS
 jest.mock('grapesjs', () => ({
   init: jest.fn(() => ({
@@ -43,6 +59,8 @@ describe('ContentEditor Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset useParams to return empty object by default
+    (useParams as jest.Mock).mockReturnValue({});
   });
 
   test('should render editor for new content creation', () => {
@@ -52,10 +70,14 @@ describe('ContentEditor Component', () => {
     expect(screen.getByLabelText('Content Title')).toBeInTheDocument();
     expect(screen.getByLabelText('Content Type')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /back to content/i })).toBeInTheDocument();
+    // The "Back to Content" button is rendered as a link when using Link component
+    expect(screen.getByRole('link', { name: /back to content/i })).toBeInTheDocument();
   });
 
   test('should render editor for editing existing content', () => {
+    // Configure useParams to return the ID for edit mode
+    (useParams as jest.Mock).mockReturnValue({ id: '123' });
+
     renderWithRouter(['/content/edit/123']);
 
     expect(screen.getByText('Edit Content')).toBeInTheDocument();
@@ -147,6 +169,9 @@ describe('ContentEditor Component', () => {
   });
 
   test('should load existing content in edit mode', async () => {
+    // Configure useParams to return the ID for edit mode
+    (useParams as jest.Mock).mockReturnValue({ id: '123' });
+
     const mockContent = {
       id: '123',
       title: 'Existing Content',
