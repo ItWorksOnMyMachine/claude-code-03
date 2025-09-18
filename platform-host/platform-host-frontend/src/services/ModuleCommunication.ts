@@ -44,10 +44,12 @@ export class ModuleCommunication {
    * Set up window-level messaging for cross-module communication
    */
   private setupWindowMessaging(): void {
-    window.addEventListener('message', (event) => {
+    window.addEventListener('message', event => {
       // Only handle messages from our own origin or trusted origins
-      if (event.origin !== window.location.origin && 
-          !this.isTrustedOrigin(event.origin)) {
+      if (
+        event.origin !== window.location.origin &&
+        !this.isTrustedOrigin(event.origin)
+      ) {
         return;
       }
 
@@ -57,9 +59,12 @@ export class ModuleCommunication {
     });
 
     // Set up custom event system for same-origin communication
-    window.addEventListener('module-message', (event: CustomEvent<ModuleMessage>) => {
-      this.handleIncomingMessage(event.detail);
-    });
+    window.addEventListener(
+      'module-message',
+      (event: CustomEvent<ModuleMessage>) => {
+        this.handleIncomingMessage(event.detail);
+      },
+    );
   }
 
   /**
@@ -68,10 +73,10 @@ export class ModuleCommunication {
   private isTrustedOrigin(origin: string): boolean {
     const trustedOrigins = [
       'https://host-fe.platform.local:3002',
-      'https://cms.platform.local:3003',
+      'https://cms-fe.platform.local:3003',
       'https://forms.platform.local:3004', // Future module
     ];
-    
+
     return trustedOrigins.includes(origin);
   }
 
@@ -99,10 +104,13 @@ export class ModuleCommunication {
     // Also send via postMessage for cross-origin communication
     if (target !== this.moduleId) {
       try {
-        window.postMessage({
-          type: 'MODULE_FEDERATION_MESSAGE',
-          message,
-        }, window.location.origin);
+        window.postMessage(
+          {
+            type: 'MODULE_FEDERATION_MESSAGE',
+            message,
+          },
+          window.location.origin,
+        );
       } catch (error) {
         console.warn('Failed to send post message:', error);
       }
@@ -148,7 +156,12 @@ export class ModuleCommunication {
   /**
    * Request data from another module and wait for response
    */
-  async request(type: string, target: string, payload: any, timeout: number = 5000): Promise<any> {
+  async request(
+    type: string,
+    target: string,
+    payload: any,
+    timeout: number = 5000,
+  ): Promise<any> {
     const requestId = this.generateMessageId();
     const responseType = `${type}_RESPONSE_${requestId}`;
 
@@ -158,7 +171,7 @@ export class ModuleCommunication {
         reject(new Error(`Request timeout: ${type} to ${target}`));
       }, timeout);
 
-      const cleanup = this.subscribe(responseType, (message) => {
+      const cleanup = this.subscribe(responseType, message => {
         clearTimeout(timeoutId);
         cleanup();
         resolve(message.payload);
@@ -174,7 +187,10 @@ export class ModuleCommunication {
   respond(originalMessage: ModuleMessage, responsePayload: any): void {
     const requestId = originalMessage.payload?.requestId;
     if (!requestId) {
-      console.warn('Cannot respond to message without requestId:', originalMessage);
+      console.warn(
+        'Cannot respond to message without requestId:',
+        originalMessage,
+      );
       return;
     }
 
@@ -199,7 +215,7 @@ export class ModuleCommunication {
     console.log(`Message received by ${this.moduleId}:`, message);
 
     // Call global handlers
-    this.globalHandlers.forEach(async (handler) => {
+    this.globalHandlers.forEach(async handler => {
       try {
         await handler(message);
       } catch (error) {
@@ -210,11 +226,14 @@ export class ModuleCommunication {
     // Call type-specific handlers
     const typeHandlers = this.handlers.get(message.type);
     if (typeHandlers) {
-      typeHandlers.forEach(async (handler) => {
+      typeHandlers.forEach(async handler => {
         try {
           await handler(message);
         } catch (error) {
-          console.error(`Error in message handler for type ${message.type}:`, error);
+          console.error(
+            `Error in message handler for type ${message.type}:`,
+            error,
+          );
         }
       });
     }
@@ -231,7 +250,9 @@ export class ModuleCommunication {
    * Generate a unique message ID
    */
   private generateMessageId(): string {
-    return `${this.moduleId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `${this.moduleId}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
   }
 
   /**
@@ -284,5 +305,6 @@ export const MessageTypes = {
 } as const;
 
 // Export singleton instance for the platform host
-export const platformCommunication = ModuleCommunication.getInstance('platform_host');
+export const platformCommunication =
+  ModuleCommunication.getInstance('platform_host');
 export default ModuleCommunication;

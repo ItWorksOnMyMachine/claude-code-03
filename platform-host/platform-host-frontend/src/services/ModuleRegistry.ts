@@ -93,8 +93,8 @@ export class ModuleRegistry {
    * Get modules by route prefix
    */
   getModulesByRoute(routePrefix: string): ModuleRegistryEntry[] {
-    return Array.from(this.modules.values()).filter(
-      module => module.route.startsWith(routePrefix)
+    return Array.from(this.modules.values()).filter(module =>
+      module.route.startsWith(routePrefix),
     );
   }
 
@@ -103,7 +103,7 @@ export class ModuleRegistry {
    */
   getRemoteConfig(name: string): RemoteModuleConfig | undefined {
     const module = this.modules.get(name);
-    
+
     if (!module || !module.enabled) {
       return undefined;
     }
@@ -165,7 +165,7 @@ export class ModuleRegistry {
    */
   subscribe(listener: (modules: ModuleRegistryEntry[]) => void): () => void {
     this.listeners.add(listener);
-    
+
     // Return unsubscribe function
     return () => {
       this.listeners.delete(listener);
@@ -192,7 +192,7 @@ export class ModuleRegistry {
 
       const data = await response.json();
       const modules: ModuleRegistryEntry[] = data.modules || [];
-      
+
       this.registerBatch(modules);
     } catch (error) {
       console.error('Failed to load modules from remote:', error);
@@ -222,7 +222,7 @@ export class ModuleRegistry {
     // Register CMS module directly without triggering listeners (to avoid circular dependency)
     this.modules.set('cmsModule', {
       name: 'cmsModule',
-      entry: 'https://cms.platform.local:3003/remoteEntry.js',
+      entry: 'https://cms-fe.platform.local:3003/remoteEntry.js',
       exposedModule: './CmsApp',
       displayName: 'Content Management System',
       route: '/cms',
@@ -230,7 +230,7 @@ export class ModuleRegistry {
       icon: 'EditNote',
       description: 'Create and manage content using a visual editor',
       version: '1.0.0',
-      healthCheckUrl: 'https://cms.platform.local:3003/health',
+      healthCheckUrl: 'https://cms-fe.platform.local:3003/health',
       requiredEntitlements: ['CMS_ACCESS'],
       tags: ['content', 'editor', 'cms'],
       permissions: ['CMS_MANAGE', 'CMS_ASSETS'],
@@ -252,7 +252,7 @@ export class ModuleRegistry {
         method: 'HEAD',
         mode: 'no-cors',
       });
-      
+
       this.moduleHealthStatus.set(moduleName, true);
       return true;
     } catch (error) {
@@ -266,16 +266,21 @@ export class ModuleRegistry {
    * Check health status of all modules
    */
   async checkAllModuleHealth(): Promise<Map<string, boolean>> {
-    const healthPromises = Array.from(this.modules.keys()).map(async (moduleName) => {
-      const isHealthy = await this.checkModuleHealth(moduleName);
-      return { moduleName, isHealthy };
-    });
+    const healthPromises = Array.from(this.modules.keys()).map(
+      async moduleName => {
+        const isHealthy = await this.checkModuleHealth(moduleName);
+        return { moduleName, isHealthy };
+      },
+    );
 
     const results = await Promise.allSettled(healthPromises);
-    
-    results.forEach((result) => {
+
+    results.forEach(result => {
       if (result.status === 'fulfilled') {
-        this.moduleHealthStatus.set(result.value.moduleName, result.value.isHealthy);
+        this.moduleHealthStatus.set(
+          result.value.moduleName,
+          result.value.isHealthy,
+        );
       }
     });
 
@@ -294,12 +299,15 @@ export class ModuleRegistry {
    */
   getModulesForUser(userEntitlements: string[] = []): ModuleRegistryEntry[] {
     return this.getEnabledModules().filter(module => {
-      if (!module.requiredEntitlements || module.requiredEntitlements.length === 0) {
+      if (
+        !module.requiredEntitlements ||
+        module.requiredEntitlements.length === 0
+      ) {
         return true;
       }
-      
+
       return module.requiredEntitlements.some(entitlement =>
-        userEntitlements.includes(entitlement)
+        userEntitlements.includes(entitlement),
       );
     });
   }
@@ -309,15 +317,19 @@ export class ModuleRegistry {
    */
   searchModules(query: string): ModuleRegistryEntry[] {
     const lowercaseQuery = query.toLowerCase();
-    
+
     return this.getAllModules().filter(module => {
       const nameMatch = module.name.toLowerCase().includes(lowercaseQuery);
-      const displayNameMatch = module.displayName.toLowerCase().includes(lowercaseQuery);
-      const descriptionMatch = module.description?.toLowerCase().includes(lowercaseQuery);
-      const tagMatch = module.tags?.some(tag => 
-        tag.toLowerCase().includes(lowercaseQuery)
+      const displayNameMatch = module.displayName
+        .toLowerCase()
+        .includes(lowercaseQuery);
+      const descriptionMatch = module.description
+        ?.toLowerCase()
+        .includes(lowercaseQuery);
+      const tagMatch = module.tags?.some(tag =>
+        tag.toLowerCase().includes(lowercaseQuery),
       );
-      
+
       return nameMatch || displayNameMatch || descriptionMatch || tagMatch;
     });
   }

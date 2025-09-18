@@ -22,13 +22,17 @@ interface PlatformContext {
   userId?: string;
 }
 
-interface ContentEditorProps extends PlatformContext {}
+interface ContentEditorProps extends PlatformContext {
+  contentId?: string;
+}
 
-const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, userId }) => {
+const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, userId, contentId }) => {
   const { id } = useParams();
+  // Use the passed contentId if available, otherwise use the id from params
+  const editId = contentId || id;
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInstance = useRef<any>(null);
-  const isEditMode = Boolean(id);
+  const isEditMode = Boolean(editId);
 
   // State management
   const [title, setTitle] = useState('');
@@ -93,8 +97,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
       });
 
       // Load content if in edit mode
-      if (isEditMode && id) {
-        loadContent(id);
+      if (isEditMode && editId) {
+        loadContent(editId);
       }
     }
 
@@ -105,7 +109,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
         editorInstance.current = null;
       }
     };
-  }, [id, isEditMode, tenantId, authToken]);
+  }, [editId, isEditMode, tenantId, authToken]);
 
   // Load content from API
   const loadContent = useCallback(async (contentId: string) => {
@@ -151,8 +155,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
         status: 'draft',
       };
 
-      if (isEditMode && id) {
-        await apiService.current.updateContent(id, contentData);
+      if (isEditMode && editId) {
+        await apiService.current.updateContent(editId, contentData);
         setMessage({ text: 'Content updated successfully', type: 'success' });
       } else {
         await apiService.current.createContent(contentData);
@@ -166,7 +170,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
     } finally {
       setIsSaving(false);
     }
-  }, [title, contentType, isEditMode, id]);
+  }, [title, contentType, isEditMode, editId]);
 
   // Auto-save functionality with debouncing (subtask 6.7)
   useEffect(() => {
@@ -188,8 +192,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
             status: 'draft',
           };
 
-          if (isEditMode && id) {
-            await apiService.current.updateContent(id, contentData);
+          if (isEditMode && editId) {
+            await apiService.current.updateContent(editId, contentData);
             setLastSaved(new Date());
           }
         } catch (error) {
@@ -201,7 +205,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
     }, 30000); // Auto-save every 30 seconds
 
     return () => clearInterval(autoSaveInterval);
-  }, [title, contentType, isEditMode, id, isSaving]);
+  }, [title, contentType, isEditMode, editId, isSaving]);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

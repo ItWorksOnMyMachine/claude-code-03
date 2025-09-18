@@ -77,7 +77,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Development", policy =>
     {
-        policy.WithOrigins("https://host-fe.platform.local:3002", "https://cms.platform.local:3003")
+        policy.WithOrigins("https://host-fe.platform.local:3002", "https://cms-fe.platform.local:3003")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

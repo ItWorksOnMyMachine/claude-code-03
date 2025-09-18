@@ -4,7 +4,7 @@ import pkg from './package.json' assert { type: 'json' };
 export default createModuleFederationConfig({
   name: 'platform_host',
   remotes: {
-    cmsModule: 'cmsModule@https://cms.platform.local:3003/remoteEntry.js',
+    cmsModule: 'cmsModule@https://cms-fe.platform.local:3003/remoteEntry.js',
   },
   shared: {
     react: {

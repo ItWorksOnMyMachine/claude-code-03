@@ -19,9 +19,11 @@ interface CmsAppProps {
   authToken?: string;
   tenantId?: string;
   userId?: string;
+  currentPath?: string;
+  onNavigate?: (path: string) => void;
 }
 
-const CmsApp: React.FC<CmsAppProps> = ({ authToken, tenantId, userId }) => {
+const CmsApp: React.FC<CmsAppProps> = ({ authToken, tenantId, userId, currentPath, onNavigate }) => {
   return (
     <ErrorBoundary
       fallback={
@@ -53,10 +55,12 @@ const CmsApp: React.FC<CmsAppProps> = ({ authToken, tenantId, userId }) => {
           }
         >
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <CmsRouter 
+            <CmsRouter
               authToken={authToken}
               tenantId={tenantId}
               userId={userId}
+              currentPath={currentPath}
+              onNavigate={onNavigate}
             />
           </Box>
         </Suspense>

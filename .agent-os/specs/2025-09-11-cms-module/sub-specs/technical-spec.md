@@ -20,7 +20,7 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
   - React Query/TanStack Query (singleton)
   - Emotion styling (singleton)
 - **Build Configuration**: Webpack Module Federation plugin with development and production builds
-- **Port Assignment**: Development server on `https://cms.platform.local:3003`
+- **Port Assignment**: Development server on `https://cms-fe.platform.local:3003`
 
 ### GrapesJS Integration Details
 

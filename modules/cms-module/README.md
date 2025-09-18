@@ -14,7 +14,7 @@ The CMS Module is a micro frontend application that enables users to create, edi
 - **Visual Editor**: GrapesJS with React integration
 - **UI Library**: Material-UI with shared platform theme
 - **State Management**: React Query for server state
-- **Development Server**: `https://cms.platform.local:3003`
+- **Development Server**: `https://cms-fe.platform.local:3003`
 
 ### Backend (cms-bff)
 - **Framework**: .NET 9 with FastEndpoints

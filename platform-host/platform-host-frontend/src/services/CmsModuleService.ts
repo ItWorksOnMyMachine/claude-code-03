@@ -1,6 +1,5 @@
-import React from 'react';
-import { remoteLoader } from './RemoteLoader';
 import type { ModuleInfo } from '@/contexts/ModuleFederationContext';
+import React from 'react';
 
 /**
  * Service for managing CMS Module integration with the platform host
@@ -13,7 +12,7 @@ export class CmsModuleService {
     this.cmsModuleInfo = {
       name: 'cmsModule',
       displayName: 'Content Management System',
-      entry: 'https://cms.platform.local:3003/remoteEntry.js',
+      entry: 'https://cms-fe.platform.local:3003/remoteEntry.js',
       exposedModule: './CmsApp',
       route: '/cms',
       icon: 'EditNote', // Material-UI icon name
@@ -40,22 +39,19 @@ export class CmsModuleService {
    */
   async loadCmsModule() {
     try {
-      const config = {
+      console.log('Loading CMS module directly via dynamic import');
+
+      // Use dynamic import for the pre-configured remote
+      // @ts-ignore - TypeScript doesn't know about the remote module
+      const module = await import('cmsModule/CmsApp');
+
+      console.log('CMS Module loaded successfully:', module);
+
+      return {
         name: this.cmsModuleInfo.name,
-        entry: this.cmsModuleInfo.entry,
-        exposedModule: this.cmsModuleInfo.exposedModule,
+        module: module,
+        error: undefined,
       };
-
-      console.log('Loading CMS module with config:', config);
-      const loaded = await remoteLoader.loadModule(config);
-
-      if (loaded.error) {
-        console.error('CMS Module loading error:', loaded.error);
-        throw new Error(`Failed to load CMS module: ${loaded.error.message}`);
-      }
-
-      console.log('CMS Module loaded successfully:', loaded);
-      return loaded;
     } catch (error) {
       console.error('CmsModuleService: Failed to load CMS module', error);
       throw error;
@@ -67,21 +63,19 @@ export class CmsModuleService {
    */
   async loadCmsRouter() {
     try {
-      const config = {
+      console.log('Loading CMS Router directly via dynamic import');
+
+      // Use dynamic import for the pre-configured remote
+      // @ts-ignore - TypeScript doesn't know about the remote module
+      const module = await import('cmsModule/CmsRouter');
+
+      console.log('CMS Router loaded successfully:', module);
+
+      return {
         name: this.cmsModuleInfo.name,
-        entry: this.cmsModuleInfo.entry,
-        exposedModule: './CmsRouter',
+        module: module,
+        error: undefined,
       };
-
-      console.log('Loading CMS Router with config:', config);
-      const loaded = await remoteLoader.loadModule(config);
-
-      if (loaded.error) {
-        console.error('CMS Router loading error:', loaded.error);
-        throw new Error(`Failed to load CMS router: ${loaded.error.message}`);
-      }
-
-      return loaded;
     } catch (error) {
       console.error('CmsModuleService: Failed to load CMS router', error);
       throw error;
@@ -97,7 +91,7 @@ export class CmsModuleService {
         method: 'HEAD',
         mode: 'no-cors',
       });
-      
+
       // In no-cors mode, we can't read the status, but if it doesn't throw, it's likely available
       return true;
     } catch (error) {
@@ -121,8 +115,8 @@ export class CmsModuleService {
     return React.lazy(async () => {
       try {
         const loaded = await this.loadCmsModule();
-        if (!loaded.module || loaded.error) {
-          throw new Error(loaded.error?.message || 'Failed to load CMS module');
+        if (!loaded.module) {
+          throw new Error('Failed to load CMS module');
         }
         return {
           default: loaded.module.default || loaded.module,
@@ -131,16 +125,21 @@ export class CmsModuleService {
         console.error('Error in lazy CMS component:', error);
         // Return a fallback component
         return {
-          default: () => React.createElement('div', {
-            style: {
-              padding: '20px',
-              border: '1px solid #f5c6cb',
-              borderRadius: '4px',
-              backgroundColor: '#f8d7da',
-              color: '#721c24',
-              margin: '10px'
-            }
-          }, 'CMS Module failed to load. Please refresh the page.'),
+          default: () =>
+            React.createElement(
+              'div',
+              {
+                style: {
+                  padding: '20px',
+                  border: '1px solid #f5c6cb',
+                  borderRadius: '4px',
+                  backgroundColor: '#f8d7da',
+                  color: '#721c24',
+                  margin: '10px',
+                },
+              },
+              'CMS Module failed to load. Please refresh the page.',
+            ),
         };
       }
     });

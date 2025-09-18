@@ -264,12 +264,12 @@ dotnet watch run
 
 - **Platform Host Frontend**: https://host-fe.platform.local:3002
 - **Platform Host BFF API**: https://host-bff.platform.local:5086
-- **CMS Module Frontend**: https://cms.platform.local:3003
-- **CMS Module BFF API**: https://cms.platform.local:5001
+- **CMS Module Frontend**: https://cms-fe.platform.local:3003
+- **CMS Module BFF API**: https://cms-fe.platform.local:5001
 - **Auth Service**: https://login.platform.local:5214
 - **API Documentation**:
   - Platform BFF: http://host-bff.platform.local:5086/swagger
-  - CMS BFF: http://cms.platform.local:5001/swagger
+  - CMS BFF: http://cms-fe.platform.local:5001/swagger
 
 ## IDE Configuration
 

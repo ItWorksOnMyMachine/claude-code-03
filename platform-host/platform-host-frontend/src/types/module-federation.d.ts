@@ -7,8 +7,15 @@ declare module '@module-federation/enhanced/runtime' {
     exposedModule: string;
   }
 
+  export interface RemoteInfo {
+    name: string;
+    entry: string;
+  }
+
+  export function loadRemote(id: string): Promise<any>;
   export function loadRemote(options: LoadRemoteOptions): Promise<any>;
   export function init(options?: any): void;
+  export function registerRemotes(remotes: RemoteInfo[]): void;
 }
 
 declare module '@module-federation/modern-js' {
@@ -31,6 +38,34 @@ declare module '@module-federation/modern-js' {
 }
 
 // Remote module type definitions
+declare module 'cmsModule/CmsApp' {
+  import React from 'react';
+
+  interface CmsAppProps {
+    authToken?: string;
+    tenantId?: string;
+    userId?: string;
+    currentPath?: string;
+    onNavigate?: (path: string) => void;
+  }
+
+  const CmsApp: React.FC<CmsAppProps>;
+  export default CmsApp;
+}
+
+declare module 'cmsModule/CmsRouter' {
+  import React from 'react';
+
+  interface CmsRouterProps {
+    authToken?: string;
+    tenantId?: string;
+    userId?: string;
+  }
+
+  const CmsRouter: React.FC<CmsRouterProps>;
+  export default CmsRouter;
+}
+
 declare module 'cms/App' {
   const CMSApp: React.ComponentType;
   export default CMSApp;

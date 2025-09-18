@@ -51,11 +51,9 @@ class RemoteLoader {
   ): Promise<LoadedModule> {
     try {
       // Load the remote module using Module Federation runtime
-      const module = await loadRemote({
-        name: config.name,
-        entry: config.entry,
-        exposedModule: config.exposedModule,
-      });
+      // For pre-configured remotes, use the format "remoteName/exposedModule"
+      const moduleId = `${config.name}${config.exposedModule}`;
+      const module = await loadRemote(moduleId);
 
       const loadedModule: LoadedModule = {
         name: config.name,

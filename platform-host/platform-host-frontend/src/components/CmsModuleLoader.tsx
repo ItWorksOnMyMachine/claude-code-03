@@ -1,14 +1,22 @@
-import React, { Suspense, useEffect, useState } from 'react';
-import { Box, CircularProgress, Alert, Button, Typography } from '@mui/material';
-import { Refresh as RefreshIcon } from '@mui/icons-material';
-import { cmsModuleService } from '@/services/CmsModuleService';
 import { useModuleFederation } from '@/contexts/ModuleFederationContext';
+import { cmsModuleService } from '@/services/CmsModuleService';
+import { Refresh as RefreshIcon } from '@mui/icons-material';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Typography,
+} from '@mui/material';
+import React, { Suspense, useEffect, useState } from 'react';
 
 interface CmsModuleLoaderProps {
   // Platform context to pass to CMS module
   authToken?: string;
   tenantId?: string;
   userId?: string;
+  currentPath?: string;
+  onNavigate?: (path: string) => void;
 }
 
 interface CmsModuleState {
@@ -21,10 +29,12 @@ interface CmsModuleState {
 /**
  * Component that loads and renders the CMS module with error boundaries and health checks
  */
-const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({ 
-  authToken, 
-  tenantId, 
-  userId 
+const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
+  authToken,
+  tenantId,
+  userId,
+  currentPath,
+  onNavigate,
 }) => {
   const { registerModule, loadModule, getModule } = useModuleFederation();
   const [state, setState] = useState<CmsModuleState>({
@@ -36,13 +46,15 @@ const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
 
   const checkHealthAndLoad = async () => {
     setState(prev => ({ ...prev, isChecking: true, error: null }));
-    
+
     try {
       // First check if CMS module is available
       const isHealthy = await cmsModuleService.checkCmsModuleHealth();
-      
+
       if (!isHealthy) {
-        throw new Error('CMS module is not available. Please ensure the CMS service is running on https://cms.platform.local:3003');
+        throw new Error(
+          'CMS module is not available. Please ensure the CMS service is running on https://cms-fe.platform.local:3003',
+        );
       }
 
       // Register the module with the federation context
@@ -51,7 +63,7 @@ const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
 
       // Create the lazy component
       const LazyComponent = cmsModuleService.createCmsModuleComponent();
-      
+
       setState(prev => ({
         ...prev,
         isHealthy: true,
@@ -103,8 +115,8 @@ const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
   if (state.error || !state.isHealthy || !state.LazyComponent) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert 
-          severity="error" 
+        <Alert
+          severity="error"
           sx={{ mb: 2 }}
           action={
             <Button
@@ -127,13 +139,16 @@ const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
             Please ensure the CMS service is running and try again.
           </Typography>
         </Alert>
-        
+
         <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="body2" color="textSecondary">
             <strong>Troubleshooting:</strong>
           </Typography>
           <Typography variant="body2" component="ul" sx={{ pl: 2, mt: 1 }}>
-            <li>Check if CMS service is running on https://cms.platform.local:3003</li>
+            <li>
+              Check if CMS service is running on
+              https://cms-fe.platform.local:3003
+            </li>
             <li>Verify network connectivity</li>
             <li>Check browser console for additional error details</li>
           </Typography>
@@ -144,7 +159,7 @@ const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
 
   // Success state - render the lazy-loaded CMS module
   const { LazyComponent } = state;
-  
+
   return (
     <Suspense
       fallback={
@@ -168,6 +183,8 @@ const CmsModuleLoader: React.FC<CmsModuleLoaderProps> = ({
           authToken={authToken}
           tenantId={tenantId}
           userId={userId}
+          currentPath={currentPath}
+          onNavigate={onNavigate}
         />
       </Box>
     </Suspense>

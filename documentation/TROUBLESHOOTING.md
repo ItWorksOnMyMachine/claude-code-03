@@ -608,10 +608,10 @@ CMS module failed to load or shows error boundary
 1. **Check Module Federation Configuration**:
    ```bash
    # Verify CMS module is running
-   curl https://cms.platform.local:3003/health
+   curl https://cms-fe.platform.local:3003/health
 
    # Check remote entry is accessible
-   curl https://cms.platform.local:3003/remoteEntry.js
+   curl https://cms-fe.platform.local:3003/remoteEntry.js
    ```
 
 2. **Verify Entitlements**:
@@ -628,7 +628,7 @@ CMS module failed to load or shows error boundary
    # Verify CORS headers allow platform host access
    curl -H "Origin: https://host-fe.platform.local:3002" \
      -H "Access-Control-Request-Method: GET" \
-     -X OPTIONS https://cms.platform.local:3003/remoteEntry.js
+     -X OPTIONS https://cms-fe.platform.local:3003/remoteEntry.js
    ```
 
 ### GrapesJS Editor Not Initializing
@@ -829,10 +829,10 @@ Shared dependencies conflicts or version mismatches
 
 ```bash
 # Backend health check
-curl https://cms.platform.local:5001/health
+curl https://cms-fe.platform.local:5001/health
 
 # Frontend health check
-curl https://cms.platform.local:3003/health
+curl https://cms-fe.platform.local:3003/health
 
 # Expected response:
 {
