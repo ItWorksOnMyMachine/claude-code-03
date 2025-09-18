@@ -27,9 +27,15 @@
     }
   },
   "include": [
-    "src",
-    "**/*.ts",
-    "**/*.tsx"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "modern.config.ts",
+    "module-federation.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.d.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

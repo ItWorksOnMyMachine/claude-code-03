@@ -13,6 +13,7 @@ using Serilog;
 using Serilog.Events;
 using System.Net.Http;
 using System.Reflection;
+using PlatformShared.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 

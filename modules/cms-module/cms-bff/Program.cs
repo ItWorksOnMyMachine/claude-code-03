@@ -11,8 +11,22 @@ using Microsoft.AspNetCore.Authentication;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.AddServerHeader = false;
+        options.Limits.MinRequestBodyDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+        options.Limits.MinResponseDataRate = new MinDataRate(80, TimeSpan.FromSeconds(10));
+#if DEBUG
+        options.ConfigureEndpoints(builder.Configuration);
+#endif
+    });
+}
 
 // Add FastEndpoints
 builder.Services.AddFastEndpoints();
@@ -29,14 +43,6 @@ if (builder.Environment.IsEnvironment("Testing"))
         .SetApplicationName("CmsBff");
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddHttpClient();
-
-    // Add session services for testing
-    builder.Services.AddSession(options =>
-    {
-        options.IdleTimeout = TimeSpan.FromMinutes(30);
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-    });
 
     // Add authentication and authorization for testing
     builder.Services.AddAuthentication("Test")
@@ -56,7 +62,7 @@ else
 
     // Add shared platform services (Redis, Data Protection, Session, Tenant Context)
     builder.Services.AddPlatformSharedServices(builder.Configuration);
-    
+
     // Add shared platform authentication for non-testing environments
     builder.Services.AddPlatformAuthentication(builder.Configuration);
 }
@@ -88,7 +94,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseSession();
 
 // Add authentication and authorization middleware for all environments
 app.UseAuthentication();

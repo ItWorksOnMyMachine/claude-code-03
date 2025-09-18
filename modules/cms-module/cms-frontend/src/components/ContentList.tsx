@@ -25,7 +25,7 @@ interface PlatformContext {
 interface ContentListProps extends PlatformContext {}
 
 const ContentList: React.FC<ContentListProps> = ({ tenantId, userId }) => {
-  const { hasEntitlement, hasAnyEntitlement, isLoading: entitlementsLoading, error: entitlementError } = useEntitlements();
+  const { hasEntitlement, isLoading: entitlementsLoading, error: entitlementError } = useEntitlements();
 
   // Mock data for initial development
   const mockContent = [
@@ -36,8 +36,6 @@ const ContentList: React.FC<ContentListProps> = ({ tenantId, userId }) => {
 
   // Check entitlements
   const canManageContent = hasEntitlement(CmsEntitlements.CMS_MANAGE);
-  const canAccessAssets = hasEntitlement(CmsEntitlements.CMS_ASSETS);
-  const canManageTemplates = hasEntitlement(CmsEntitlements.CMS_TEMPLATES);
 
   if (entitlementsLoading) {
     return (

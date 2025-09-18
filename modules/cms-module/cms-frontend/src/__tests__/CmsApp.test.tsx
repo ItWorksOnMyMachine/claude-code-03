@@ -1,4 +1,4 @@
-import React from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from '@modern-js/runtime/router';
 import CmsApp from '../CmsApp';

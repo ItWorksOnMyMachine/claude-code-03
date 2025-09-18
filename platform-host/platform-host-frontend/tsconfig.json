@@ -9,6 +9,7 @@
       "@shared/*": ["./shared/*"]
     },
     "resolveJsonModule": true,
+    "module": "esnext",
     "moduleResolution": "bundler"
   },
   "include": ["src", "shared", "config", "modern.config.ts"],

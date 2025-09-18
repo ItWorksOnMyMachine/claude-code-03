@@ -57,9 +57,9 @@ export class ModuleCommunication {
     });
 
     // Set up custom event system for same-origin communication
-    window.addEventListener('module-message', (event: CustomEvent<ModuleMessage>) => {
+    window.addEventListener('module-message' as any, ((event: CustomEvent<ModuleMessage>) => {
       this.handleIncomingMessage(event.detail);
-    });
+    }) as EventListener);
   }
 
   /**

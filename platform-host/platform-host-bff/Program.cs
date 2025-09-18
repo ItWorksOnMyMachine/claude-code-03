@@ -14,8 +14,10 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Claims;
 using FastEndpoints;
 using PlatformShared.Extensions;
+using PlatformShared.Middleware;
 using PlatformShared.Services;
 using PlatformShared.DataProtection.S3;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +64,11 @@ builder.Services.AddScoped<ITenantUserRepository, TenantUserRepository>();
 if (builder.Environment.EnvironmentName != "Testing")
 {
     builder.Services.AddPlatformSharedServices(builder.Configuration);
+
+    // Register Redis IConnectionMultiplexer for dependency injection
+    var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+        ConnectionMultiplexer.Connect(redisConnectionString));
 }
 else
 {
@@ -75,6 +82,10 @@ else
     builder.Services.AddScoped<PlatformShared.Services.ISessionService, PlatformShared.Services.DistributedSessionService>();
     builder.Services.AddScoped<PlatformShared.Services.IEntitlementService, PlatformShared.Services.EntitlementService>();
 }
+
+// Add local service implementations (these wrap or delegate to the shared services)
+builder.Services.AddScoped<PlatformBff.Services.ITenantContext, PlatformBff.Services.TenantContext>();
+builder.Services.AddScoped<PlatformBff.Services.ISessionService, PlatformBff.Services.DistributedSessionService>();
 
 // Add Tenant Services
 builder.Services.AddScoped<ITenantService, TenantService>();
@@ -317,8 +328,10 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
 // Redis connectivity test endpoint (development only)
 if (app.Environment.IsDevelopment())
 {
-    app.MapGet("/test/redis", async (IConnectionMultiplexer? redis) =>
+    app.MapGet("/test/redis", async (IServiceProvider serviceProvider) =>
     {
+        var redis = serviceProvider.GetService<IConnectionMultiplexer>();
+
         if (redis == null)
         {
             return Results.Ok(new { status = "not_configured", message = "Redis is not configured, using in-memory cache" });

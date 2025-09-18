@@ -43,7 +43,7 @@ describe('Remote Loading Functionality', () => {
       // but not shared with the host
       const grapesjs = require('grapesjs');
       expect(grapesjs).toBeDefined();
-    } catch (error) {
+    } catch (error: any) {
       // If GrapesJS is not installed yet, that's expected for this test phase
       expect(error.message).toMatch(/Cannot find module|Module not found/);
     }
@@ -73,7 +73,7 @@ describe('Remote Loading Functionality', () => {
     // Check that the component is compatible with Suspense
     // (it should not throw synchronously)
     expect(() => {
-      const component = CmsAppModule.default({});
+      CmsAppModule.default({});
       // In a real test, we'd render this with React Testing Library
       // This is a basic compatibility check
     }).not.toThrow();

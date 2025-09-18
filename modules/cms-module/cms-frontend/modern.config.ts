@@ -13,7 +13,7 @@ export default defineConfig({
   },
   dev: {
     port: 3003,
-    host: 'cms.platform.local',
+    host: 'cms-fe.platform.local',
     hmr: true,
   },
   output: {
@@ -36,11 +36,8 @@ export default defineConfig({
   performance: {
     chunkSplit: {
       strategy: 'split-by-experience',
-      minSize: 20000,
-      maxSize: 244000,
     },
     buildCache: true,
-    removeMomentJs: true,
   },
   tools: {
     devServer: {
@@ -48,14 +45,14 @@ export default defineConfig({
         cert: fs.readFileSync(
           path.resolve(
             __dirname,
-            '../certs/_wildcard.platform.local-fullchain.pem',
+            '../../../certs/_wildcard.platform.local-fullchain.pem',
           ),
           'utf8',
         ),
         key: fs.readFileSync(
           path.resolve(
             __dirname,
-            '../certs/_wildcard.platform.local-key-pkcs8.pem',
+            '../../../certs/_wildcard.platform.local-key-pkcs8.pem',
           ),
           'utf8',
         ),

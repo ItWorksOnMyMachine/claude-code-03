@@ -44,7 +44,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
   useEffect(() => {
     if (editorRef.current && !editorInstance.current) {
       // Initialize GrapesJS editor
-      editorInstance.current = grapesjs.init({
+      editorInstance.current = (grapesjs as any).init({
         container: editorRef.current,
         height: '500px',
         width: '100%',
@@ -236,7 +236,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
         </Toolbar>
         
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Content Title"
@@ -246,7 +246,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ tenantId, authToken, user
               disabled={isLoading}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Content Type"

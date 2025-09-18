@@ -46,14 +46,7 @@ export default createModuleFederationConfig({
       requiredVersion: pkg.dependencies['@modern-js/runtime'],
     },
     // Emotion dependencies are NOT shared to prevent styling conflicts
-    '@emotion/react': false,
-    '@emotion/styled': false,
     // GrapesJS dependencies are not shared to avoid version conflicts
-    'grapesjs': false,
-    'grapesjs-react': false,
-    'grapesjs-preset-webpage': false,
-    'grapesjs-plugin-forms': false,
-    'react-dropzone': false,
-    'dompurify': false,
+    // These are commented out instead of set to false as Module Federation doesn't support false values
   },
 });

@@ -1,14 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
+import {
+  Box,
+  Typography,
+  Paper,
   Grid,
   Card,
   CardMedia,
   CardContent,
   CardActions,
-  Button,
   IconButton,
   Alert
 } from '@mui/material';
@@ -186,7 +185,7 @@ const AssetManager: React.FC<AssetManagerProps> = ({ tenantId, authToken }) => {
       {/* Assets Grid */}
       <Grid container spacing={2}>
         {assets.map((asset) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={asset.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={asset.id}>
             <Card>
               {asset.type.startsWith('image/') ? (
                 <CardMedia

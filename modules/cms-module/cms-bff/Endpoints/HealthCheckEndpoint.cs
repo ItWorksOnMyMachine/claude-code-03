@@ -2,6 +2,7 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using CmsBff.Data;
 using System.Reflection;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CmsBff.Endpoints;
 
@@ -22,6 +23,7 @@ public class HealthCheckResponse
 /// Health check endpoint for monitoring and load balancer health checks
 /// </summary>
 [HttpGet("/health")]
+[AllowAnonymous]
 public class HealthCheckEndpoint : EndpointWithoutRequest<HealthCheckResponse>
 {
     private readonly CmsDbContext _context;
